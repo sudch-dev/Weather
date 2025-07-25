@@ -11,6 +11,39 @@ app = Flask(__name__)
 def get_ip_location():
     return 23.5204, 87.3119, "Durgapur", "West Bengal"
 
+def get_weather_description(code):
+    descriptions = {
+        0: "Clear sky",
+        1: "Mainly clear",
+        2: "Partly cloudy",
+        3: "Overcast",
+        45: "Fog",
+        48: "Depositing rime fog",
+        51: "Light drizzle",
+        53: "Moderate drizzle",
+        55: "Dense drizzle",
+        56: "Light freezing drizzle",
+        57: "Dense freezing drizzle",
+        61: "Slight rain",
+        63: "Moderate rain",
+        65: "Heavy rain",
+        66: "Light freezing rain",
+        67: "Heavy freezing rain",
+        71: "Slight snowfall",
+        73: "Moderate snowfall",
+        75: "Heavy snowfall",
+        77: "Snow grains",
+        80: "Slight rain showers",
+        81: "Moderate rain showers",
+        82: "Violent rain showers",
+        85: "Slight snow showers",
+        86: "Heavy snow showers",
+        95: "Thunderstorm (slight or moderate)",
+        96: "Thunderstorm with slight hail",
+        99: "Thunderstorm with heavy hail"
+    }
+    return descriptions.get(code, "Unknown")
+
 def get_weather(lat, lon):
     try:
         url = (
@@ -24,7 +57,6 @@ def get_weather(lat, lon):
         data = requests.get(url).json()
         current = data.get("current_weather", {})
 
-        # Convert UTC time to IST for current weather
         utc_time_str = current.get("time", "")
         ist_time_str = "N/A"
         if utc_time_str:
@@ -33,7 +65,6 @@ def get_weather(lat, lon):
             ist_dt = utc_dt.astimezone(pytz.timezone("Asia/Kolkata"))
             ist_time_str = ist_dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        # Forecast data (next 3 days max/min temperatures)
         forecast_days = []
         daily = data.get("daily", {})
         dates = daily.get("time", [])
@@ -45,7 +76,8 @@ def get_weather(lat, lon):
                 "date": dates[i],
                 "temp_max": temps_max[i],
                 "temp_min": temps_min[i],
-                "weathercode": codes[i]
+                "weathercode": codes[i],
+                "description": get_weather_description(codes[i])
             })
 
         return {
@@ -64,20 +96,6 @@ def index():
     weather = get_weather(lat, lon)
     return render_template("index.html", city=city, region=region, weather=weather, now=datetime.now(pytz.timezone("Asia/Kolkata")))
 
-@app.route("/ping")
-def ping():
-    return "pong"
-
-# Background ping every 10 mins
-def ping_self():
-    while True:
-        try:
-            time.sleep(600)  # 10 minutes
-            print("Pinging self...")
-            requests.get("https://weather-nuo5.onrender.com")  # Replace with full URL if hosted
-        except Exception as e:
-            print("Ping failed:", e)
-
 @app.route("/start")
 def start():
     if not hasattr(app, "ping_thread_started"):
@@ -86,6 +104,19 @@ def start():
         thread.start()
         app.ping_thread_started = True
     return "Ping thread started."
+
+def ping_self():
+    while True:
+        try:
+            time.sleep(600)
+            print("Pinging self...")
+            requests.get("http://127.0.0.1:5000/ping")
+        except Exception as e:
+            print("Ping failed:", e)
+
+@app.route("/ping")
+def ping():
+    return "pong"
 
 if __name__ == "__main__":
     app.run(debug=True)
