@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Weather</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>🌦 Live Weather Report</h1>
+    <p>Location: <strong>{{ city }}, {{ region }}</strong></p>
+    <p>Time: {{ now.strftime("%Y-%m-%d %H:%M:%S") }}</p>
+    <p>Temperature: <strong>{{ weather.temperature }}°C</strong></p>
+    <p>Wind Speed: <strong>{{ weather.windspeed }} km/h</strong></p>
+    <p>Last Update (from API): {{ weather.time }}</p>
+</body>
+</html>
