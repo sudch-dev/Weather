@@ -4,17 +4,10 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+# Hardcoded location: Durgapur, West Bengal
 def get_ip_location():
-    try:
-        ip = requests.get("https://api.ipify.org").text
-        location = requests.get(f"https://ipinfo.io/{ip}/json").json()
-        loc = location.get("loc", "")
-        city = location.get("city", "Unknown")
-        region = location.get("region", "Unknown")
-        lat, lon = loc.split(",") if loc else ("0", "0")
-        return float(lat), float(lon), city, region
-    except:
-        return None, None, "Unknown", "Unknown"
+    # Durgapur coordinates: 23.5204° N, 87.3119° E
+    return 23.5204, 87.3119, "Durgapur", "West Bengal"
 
 def get_weather(lat, lon):
     try:
