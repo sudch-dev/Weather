@@ -74,7 +74,7 @@ def ping_self():
         try:
             time.sleep(600)  # 10 minutes
             print("Pinging self...")
-            requests.get("http://127.0.0.1:5000/ping")  # Replace with full URL if hosted
+            requests.get("https://weather-nuo5.onrender.com")  # Replace with full URL if hosted
         except Exception as e:
             print("Ping failed:", e)
 
