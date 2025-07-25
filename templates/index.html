@@ -1,15 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Live Weather</title>
-    <meta charset="utf-8">
+    <title>Weather – Durgapur</title>
 </head>
 <body>
-    <h1>🌦 Live Weather Report</h1>
-    <p>Location: <strong>{{ city }}, {{ region }}</strong></p>
-    <p>Time: {{ now.strftime("%Y-%m-%d %H:%M:%S") }}</p>
-    <p>Temperature: <strong>{{ weather.temperature }}°C</strong></p>
-    <p>Wind Speed: <strong>{{ weather.windspeed }} km/h</strong></p>
-    <p>Last Update (from API): {{ weather.time }}</p>
+    <h1>Weather for {{ city }}, {{ region }}</h1>
+    <p>Current Time: {{ now.strftime("%Y-%m-%d %H:%M:%S") }}</p>
+    <h2>Current Weather</h2>
+    <ul>
+        <li>Temperature: {{ weather.temperature }} °C</li>
+        <li>Wind Speed: {{ weather.windspeed }} km/h</li>
+        <li>Time (IST): {{ weather.time }}</li>
+    </ul>
+
+    <h2>Forecast (Next 3 Days)</h2>
+    <ul>
+    {% for day in weather.forecast %}
+        <li>
+            <strong>{{ day.date }}</strong> → Max: {{ day.temp_max }} °C, Min: {{ day.temp_min }} °C, Code: {{ day.weathercode }}
+        </li>
+    {% endfor %}
+    </ul>
 </body>
 </html>
