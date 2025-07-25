@@ -116,7 +116,7 @@ def ping_self():
 
 @app.route("/ping")
 def ping():
-    return "pong"
+    return "ping"
 
 if __name__ == "__main__":
     app.run(debug=True)
