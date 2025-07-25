@@ -110,7 +110,7 @@ def ping_self():
         try:
             time.sleep(600)
             print("Pinging self...")
-            requests.get("http://127.0.0.1:5000/ping")
+            requests.get("https://weather-nuo5.onrender.com/")
         except Exception as e:
             print("Ping failed:", e)
 
