@@ -1,1 +1,1 @@
-worker: python weather_reporter.py
+web: python app.py
