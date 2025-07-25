@@ -78,11 +78,14 @@ def ping_self():
         except Exception as e:
             print("Ping failed:", e)
 
-@app.before_first_request
-def activate_ping_thread():
-    thread = threading.Thread(target=ping_self)
-    thread.daemon = True
-    thread.start()
+@app.route("/start")
+def start():
+    if not hasattr(app, "ping_thread_started"):
+        thread = threading.Thread(target=ping_self)
+        thread.daemon = True
+        thread.start()
+        app.ping_thread_started = True
+    return "Ping thread started."
 
 if __name__ == "__main__":
     app.run(debug=True)
