@@ -1,25 +1,232 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <title>Weather – Durgapur</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Weather • {{ city }}, {{ region }}</title>
+  <style>
+    :root { --bg:#0b132b; --card:#1c2541; --mut:#3a506b; --acc:#5bc0be; --txt:#e0fbfc; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--txt); }
+    header { padding:16px 20px; border-bottom:1px solid var(--mut); position:sticky; top:0; background:linear-gradient(180deg,var(--bg),rgba(11,19,43,0.8)); backdrop-filter:saturate(1.2) blur(2px); }
+    h1 { margin:0; font-size:1.25rem; }
+    .muted { color:#cfe8ea; opacity:.8; }
+    .wrap { max-width:1100px; margin:0 auto; padding:20px; display:grid; gap:16px; }
+    .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+    .card { background:var(--card); border:1px solid var(--mut); border-radius:12px; padding:16px; }
+    .kpi { display:flex; gap:16px; align-items:center; }
+    .kpi div { display:flex; flex-direction:column; }
+    .kpi .big { font-weight:700; font-size:2rem; line-height:1; }
+    table { width:100%; border-collapse:collapse; font-size:.92rem; }
+    th, td { padding:8px; border-bottom:1px dashed #2d3a55; text-align:left; white-space:nowrap; }
+    th { position:sticky; top:0; background:var(--card); }
+    .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:var(--mut); color:var(--txt); font-size:.8rem; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    a { color:var(--acc); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .error { color: #ffd7d7; }
+    footer { padding:20px; text-align:center; color:#cfe8ea; opacity:.8; }
+    .small { font-size:.85rem; }
+    .sticky-table { max-height: 420px; overflow:auto; border:1px solid var(--mut); border-radius:8px; }
+  </style>
 </head>
 <body>
-    <h1>Weather for {{ city }}, {{ region }}</h1>
-    <p>Current Time: {{ now.strftime("%Y-%m-%d %H:%M:%S") }}</p>
+  <header>
+    <h1>Weather • {{ city }}, {{ region }} <span class="muted">| IST: {{ now_ist }}</span></h1>
+  </header>
 
-    <h2>Current Weather</h2>
-    <ul>
-        <li>Temperature: {{ weather.temperature }} °C</li>
-        <li>Wind Speed: {{ weather.windspeed }} km/h</li>
-    </ul>
+  <div class="wrap">
+    <!-- Current -->
+    <section class="grid">
+      <div class="card">
+        <h2>Current Weather</h2>
+        {% set cur = payload.current %}
+        <div class="kpi">
+          <div class="big">{{ cur.temperature if cur.temperature is not none else "—" }}°C</div>
+          <div>
+            <span>{{ cur.weather_desc }}</span>
+            <span class="muted small">Windspeed: {{ cur.windspeed }} km/h</span>
+            <span class="muted small">Direction: {{ cur.winddirection }}°</span>
+            <span class="muted small">Updated: {{ cur.time_ist }}</span>
+          </div>
+        </div>
+        {% if payload.errors.forecast %}
+          <p class="error small">Forecast error: {{ payload.errors.forecast }}</p>
+        {% endif %}
+      </div>
 
-    <h2>Forecast (Next 3 Days)</h2>
-    <ul>
-    {% for day in weather.forecast %}
-        <li>
-            <strong>{{ day.date }}</strong> → Max: {{ day.temp_max }} °C, Min: {{ day.temp_min }} °C, Weather: {{ day.description }}
-        </li>
-    {% endfor %}
-    </ul>
+      <div class="card">
+        <h2>Meta</h2>
+        <div class="row small">
+          <span class="pill">TZ: {{ payload.meta.timezone }}</span>
+          <span class="pill">Elevation: {{ payload.meta.elevation }}</span>
+          <span class="pill">Gen: {{ "%.1f"|format(payload.meta.generationtime_ms|default(0)) }} ms</span>
+        </div>
+        <p class="small">APIs:
+          <a href="{{ payload.meta.forecast_url }}" target="_blank" rel="noopener">Forecast</a> ·
+          <a href="{{ payload.meta.air_quality_url }}" target="_blank" rel="noopener">Air Quality</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- Daily -->
+    <section class="card">
+      <h2>Daily (Next 7 Days)</h2>
+      <div class="sticky-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Min / Max (°C)</th>
+              <th>Feels (°C)</th>
+              <th>Precip (mm / hrs)</th>
+              <th>Wind (km/h / Gust)</th>
+              <th>Dir (°)</th>
+              <th>Sunrise / Sunset (IST)</th>
+              <th>UV Max</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in payload.daily %}
+              <tr>
+                <td>{{ d.date }}</td>
+                <td>{{ d.temperature_2m_min }} / {{ d.temperature_2m_max }}</td>
+                <td>{{ d.apparent_temperature_min }} / {{ d.apparent_temperature_max }}</td>
+                <td>{{ d.precipitation_sum }} / {{ d.precipitation_hours }}</td>
+                <td>{{ d.wind_speed_10m_max }} / {{ d.wind_gusts_10m_max }}</td>
+                <td>{{ d.wind_direction_10m_dominant }}</td>
+                <td>{{ d.sunrise_ist or d.sunrise }} / {{ d.sunset_ist or d.sunset }}</td>
+                <td>{{ d.uv_index_max }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Hourly -->
+    <section class="card">
+      <h2>Hourly (Next 24 Hours)</h2>
+      <div class="sticky-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Time (IST)</th>
+              <th>Temp</th>
+              <th>Feels</th>
+              <th>RH%</th>
+              <th>DewPt</th>
+              <th>Precip</th>
+              <th>Rain</th>
+              <th>Showers</th>
+              <th>Snow</th>
+              <th>SnowDepth</th>
+              <th>PrecProb%</th>
+              <th>Cloud%</th>
+              <th>Vis (m)</th>
+              <th>UV</th>
+              <th>UV (Clear)</th>
+              <th>Wind (km/h)</th>
+              <th>Gust</th>
+              <th>Dir°</th>
+              <th>MSL (hPa)</th>
+              <th>SurfP (hPa)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in payload.hourly %}
+              <tr>
+                <td>{{ h.time_ist }}</td>
+                <td>{{ h.temperature_2m }}</td>
+                <td>{{ h.apparent_temperature }}</td>
+                <td>{{ h.relative_humidity_2m }}</td>
+                <td>{{ h.dew_point_2m }}</td>
+                <td>{{ h.precipitation }}</td>
+                <td>{{ h.rain }}</td>
+                <td>{{ h.showers }}</td>
+                <td>{{ h.snowfall }}</td>
+                <td>{{ h.snow_depth }}</td>
+                <td>{{ h.precipitation_probability }}</td>
+                <td>{{ h.cloud_cover }}</td>
+                <td>{{ h.visibility }}</td>
+                <td>{{ h.uv_index }}</td>
+                <td>{{ h.uv_index_clear_sky }}</td>
+                <td>{{ h.wind_speed_10m }}</td>
+                <td>{{ h.wind_gusts_10m }}</td>
+                <td>{{ h.wind_direction_10m }}</td>
+                <td>{{ h.pressure_msl }}</td>
+                <td>{{ h.surface_pressure }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if payload.errors.forecast %}
+        <p class="error small">Forecast error: {{ payload.errors.forecast }}</p>
+      {% endif %}
+    </section>
+
+    <!-- Air Quality -->
+    <section class="card">
+      <h2>Air Quality (Next 24 Hours)</h2>
+      <div class="sticky-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Time (IST)</th>
+              <th>US AQI</th>
+              <th>US AQI (PM2.5)</th>
+              <th>US AQI (PM10)</th>
+              <th>US AQI (NO₂)</th>
+              <th>US AQI (O₃)</th>
+              <th>US AQI (SO₂)</th>
+              <th>US AQI (CO)</th>
+              <th>PM2.5</th>
+              <th>PM10</th>
+              <th>NO₂</th>
+              <th>SO₂</th>
+              <th>O₃</th>
+              <th>CO</th>
+              <th>AOD</th>
+              <th>Dust</th>
+              <th>UV</th>
+              <th>UV (Clear)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in payload.air_quality %}
+              <tr>
+                <td>{{ a.time_ist }}</td>
+                <td>{{ a.us_aqi }}</td>
+                <td>{{ a.us_aqi_pm2_5 }}</td>
+                <td>{{ a.us_aqi_pm10 }}</td>
+                <td>{{ a.us_aqi_no2 }}</td>
+                <td>{{ a.us_aqi_o3 }}</td>
+                <td>{{ a.us_aqi_so2 }}</td>
+                <td>{{ a.us_aqi_co }}</td>
+                <td>{{ a.pm2_5 }}</td>
+                <td>{{ a.pm10 }}</td>
+                <td>{{ a.nitrogen_dioxide }}</td>
+                <td>{{ a.sulphur_dioxide }}</td>
+                <td>{{ a.ozone }}</td>
+                <td>{{ a.carbon_monoxide }}</td>
+                <td>{{ a.aerosol_optical_depth }}</td>
+                <td>{{ a.dust }}</td>
+                <td>{{ a.uv_index }}</td>
+                <td>{{ a.uv_index_clear_sky }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if payload.errors.air %}
+        <p class="error small">Air Quality error: {{ payload.errors.air }}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <footer class="small">
+    Data: Open-Meteo • Location fixed to Durgapur, WB • <a href="/start">Start Keep-Alive</a> • <a href="/ping">Ping</a>
+  </footer>
 </body>
 </html>
