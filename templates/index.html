@@ -53,9 +53,8 @@
     <section class="card">
       <h2 style="margin-top:0">Today</h2>
       {% set t = payload.today %}
-      {% set alert = t.alert %}
       <div class="kpi">
-        <div class="big {{ 'blink' if alert else '' }}">
+        <div class="big {{ 'blink' if t['alert'] else '' }}">
           {% if t.temperature is not none %}
             {{ t.temperature }}°C
           {% else %} — {% endif %}
@@ -63,7 +62,7 @@
         <div>
           <div>
             Precip. Probability:
-            <span class="{{ 'blink' if t.precip_alert else '' }}">
+            <span class="{{ 'blink' if t['precip_alert'] else '' }}">
               {{ t.precip_prob if t.precip_prob is not none else "—" }}%
             </span>
           </div>
@@ -136,7 +135,7 @@
       </div>
     </section>
 
-    <!-- HOURLY TABLE (optional extra; hidden behind More) -->
+    <!-- HOURLY TABLE (hidden by default; expandable) -->
     <section class="card">
       <h2 style="margin-top:0">Hourly (Next 24 Hours)</h2>
       <div class="muted">Tap <span class="more" data-target="#hourly-more">More</span> to expand.</div>
@@ -201,7 +200,7 @@
       {% endif %}
     </section>
 
-    <!-- AIR QUALITY (kept as a separate section; not changed) -->
+    <!-- AIR QUALITY -->
     <section class="card">
       <h2 style="margin-top:0">Air Quality (Next 24 Hours)</h2>
       <div class="sticky-table">
@@ -265,7 +264,7 @@
   </footer>
 
   <script>
-    // --- expand/collapse ---
+    // expand/collapse
     document.querySelectorAll('.more').forEach(el => {
       el.addEventListener('click', () => {
         const sel = el.getAttribute('data-target');
@@ -274,7 +273,7 @@
       });
     });
 
-    // --- typeahead search using /geo proxy ---
+    // typeahead search using /geo proxy
     const box = document.getElementById('place');
     const sugs = document.getElementById('sugs');
     let tmr = null;
