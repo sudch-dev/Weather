@@ -6,16 +6,17 @@ from typing import Any, Dict, List
 
 import pytz
 import requests
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
 # -------------------- Config --------------------
 IST = pytz.timezone("Asia/Kolkata")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5000")
-# Fixed location: Durgapur, West Bengal
-FIXED_COORDS = (23.5204, 87.3119, "Durgapur", "West Bengal")
 
+# Coordinates
+DURGAPUR = (23.5204, 87.3119, "Durgapur", "West Bengal")
+KOLKATA  = (22.5726, 88.3639, "Kolkata",  "West Bengal")
 
 # -------------------- Weathercode → Description --------------------
 WEATHERCODE_DESC = {
@@ -27,7 +28,8 @@ WEATHERCODE_DESC = {
     71: "Slight snowfall", 73: "Moderate snowfall", 75: "Heavy snowfall",
     77: "Snow grains", 80: "Slight rain showers", 81: "Moderate rain showers",
     82: "Violent rain showers", 85: "Slight snow showers", 86: "Heavy snow showers",
-    95: "Thunderstorm (slight or moderate)", 96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail",
+    95: "Thunderstorm (slight or moderate)", 96: "Thunderstorm with slight hail",
+    99: "Thunderstorm with heavy hail",
 }
 
 def weather_desc(code: Any) -> str:
@@ -37,7 +39,7 @@ def weather_desc(code: Any) -> str:
         return "Unknown"
 
 def parse_to_ist(iso_str: str) -> str:
-    """Convert Open-Meteo 'YYYY-MM-DDTHH:MM' (UTC) to IST display."""
+    """Open-Meteo gives iso8601 in UTC when timezone=UTC. Convert safely to IST."""
     if not iso_str:
         return "N/A"
     try:
@@ -46,11 +48,15 @@ def parse_to_ist(iso_str: str) -> str:
         dt_ist = dt_utc.astimezone(IST)
         return dt_ist.strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
-        # If format differs (seconds / timezone offset), just echo
+        # If seconds/offset appear, just return raw to avoid breaking
         return iso_str
 
-def get_location():
-    return FIXED_COORDS  # (lat, lon, city, region)
+def get_location() -> tuple:
+    """Pick city by query param ?city=durgapur|kolkata (default: durgapur)."""
+    city = (request.args.get("city") or "").strip().lower()
+    if city == "kolkata":
+        return KOLKATA
+    return DURGAPUR
 
 def _join(items: List[str]) -> str:
     return ",".join(items)
@@ -60,12 +66,14 @@ def build_forecast_url(lat: float, lon: float) -> str:
         "temperature_2m","apparent_temperature","relative_humidity_2m","dew_point_2m",
         "precipitation","rain","showers","snowfall","snow_depth","precipitation_probability",
         "pressure_msl","surface_pressure","cloud_cover","cloud_cover_low","cloud_cover_mid","cloud_cover_high",
-        "visibility","uv_index","uv_index_clear_sky","wind_speed_10m","wind_gusts_10m","wind_direction_10m",
+        "visibility","uv_index","uv_index_clear_sky",
+        "wind_speed_10m","wind_gusts_10m","wind_direction_10m",
     ]
     daily = [
         "temperature_2m_max","temperature_2m_min","apparent_temperature_max","apparent_temperature_min",
-        "sunrise","sunset","uv_index_max","uv_index_clear_sky_max","precipitation_sum","rain_sum","showers_sum",
-        "snowfall_sum","precipitation_hours","wind_speed_10m_max","wind_gusts_10m_max","wind_direction_10m_dominant",
+        "sunrise","sunset","uv_index_max","uv_index_clear_sky_max",
+        "precipitation_sum","rain_sum","showers_sum","snowfall_sum","precipitation_hours",
+        "wind_speed_10m_max","wind_gusts_10m_max","wind_direction_10m_dominant",
     ]
     return (
         "https://api.open-meteo.com/v1/forecast"
@@ -73,8 +81,8 @@ def build_forecast_url(lat: float, lon: float) -> str:
         f"&current_weather=true"
         f"&hourly={_join(hourly)}"
         f"&daily={_join(daily)}"
-        "&timeformat=iso8601"   # correct param
-        "&timezone=UTC"         # request UTC; we convert to IST
+        "&timeformat=iso8601"
+        "&timezone=UTC"
     )
 
 def build_air_quality_url(lat: float, lon: float) -> str:
@@ -103,12 +111,12 @@ def fetch_json(url: str) -> Dict[str, Any]:
 
 def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
     forecast = fetch_json(build_forecast_url(lat, lon))
-    air = fetch_json(build_air_quality_url(lat, lon))
+    air      = fetch_json(build_air_quality_url(lat, lon))
 
-    # ---- Meta (coerce numbers safely) ----
-    gen_ms = forecast.get("generationtime_ms")
+    # Meta safe coercion
+    gen_ms_raw = forecast.get("generationtime_ms")
     try:
-        gen_ms = float(gen_ms) if gen_ms is not None else 0.0
+        gen_ms = float(gen_ms_raw) if gen_ms_raw is not None else 0.0
     except Exception:
         gen_ms = 0.0
 
@@ -120,7 +128,7 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
         "generationtime_ms": gen_ms,
     }
 
-    # ---- Current ----
+    # Current
     cur = forecast.get("current_weather", {}) if isinstance(forecast, dict) else {}
     current = {
         "temperature": cur.get("temperature"),
@@ -131,7 +139,7 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
         "time_ist": parse_to_ist(cur.get("time", "")),
     }
 
-    # ---- Hourly (first 24) ----
+    # Hourly (24)
     hourly = forecast.get("hourly", {}) if isinstance(forecast, dict) else {}
     times_h = list(hourly.get("time", []))[:24]
     hourly_out: List[Dict[str, Any]] = []
@@ -146,7 +154,7 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
                 row[key] = None
         hourly_out.append(row)
 
-    # ---- Daily (next 7) ----
+    # Daily (7)
     daily = forecast.get("daily", {}) if isinstance(forecast, dict) else {}
     times_d = list(daily.get("time", []))[:7]
     daily_out: List[Dict[str, Any]] = []
@@ -167,7 +175,7 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
             row["sunset_ist"] = parse_to_ist(row["sunset"])
         daily_out.append(row)
 
-    # ---- Air quality hourly (first 24) ----
+    # Air quality (24)
     aq = air.get("hourly", {}) if isinstance(air, dict) else {}
     aq_times = list(aq.get("time", []))[:24]
     aq_out: List[Dict[str, Any]] = []
@@ -182,13 +190,14 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
                 row[key] = None
         aq_out.append(row)
 
-    errors = {
-        "forecast": forecast.get("_error"),
-        "air": air.get("_error"),
+    return {
+        "meta": meta,
+        "current": current,
+        "hourly": hourly_out,
+        "daily": daily_out,
+        "air_quality": aq_out,
+        "errors": {"forecast": forecast.get("_error"), "air": air.get("_error")},
     }
-
-    return {"meta": meta, "current": current, "hourly": hourly_out, "daily": daily_out, "air_quality": aq_out, "errors": errors}
-
 
 # -------------------- Keep Alive --------------------
 @app.route("/ping")
@@ -199,7 +208,7 @@ def _keepalive():
     url = APP_BASE_URL.rstrip("/") + "/ping"
     while True:
         try:
-            time.sleep(600)  # 10 min
+            time.sleep(600)  # 10 minutes
             requests.get(url, timeout=10)
             print(f"[KEEPALIVE] Pinged {url}")
         except Exception as e:
@@ -219,7 +228,6 @@ def start_keepalive():
     ensure_keepalive()
     return "Keep-alive started."
 
-
 # -------------------- Routes --------------------
 @app.route("/")
 def index():
@@ -227,7 +235,6 @@ def index():
     payload = assemble_payload(lat, lon)
     now_ist = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
     return render_template("index.html", city=city, region=region, now_ist=now_ist, payload=payload)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
