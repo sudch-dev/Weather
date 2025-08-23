@@ -5,180 +5,205 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Weather • {{ city }}, {{ region }}</title>
   <style>
-    :root { --bg:#0b132b; --card:#1c2541; --mut:#3a506b; --acc:#5bc0be; --txt:#e0fbfc; }
+    :root { --bg:#0b132b; --card:#1c2541; --mut:#3a506b; --acc:#5bc0be; --txt:#e0fbfc; --alert:#ff6b6b; }
     * { box-sizing: border-box; }
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--txt); }
-    header { padding:16px 20px; border-bottom:1px solid var(--mut); position:sticky; top:0; background:linear-gradient(180deg,var(--bg),rgba(11,19,43,0.8)); backdrop-filter:saturate(1.2) blur(2px); }
-    h1 { margin:0; font-size:1.25rem; }
-    .muted { color:#cfe8ea; opacity:.8; }
-    .wrap { max-width:1100px; margin:0 auto; padding:20px; display:grid; gap:16px; }
-    .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+    header { padding:12px 16px; border-bottom:1px solid var(--mut); position:sticky; top:0; background:linear-gradient(180deg,var(--bg),rgba(11,19,43,0.85)); backdrop-filter:saturate(1.2) blur(2px); }
+    h1 { margin:0; font-size:1.1rem; }
+    .wrap { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+    .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
     .card { background:var(--card); border:1px solid var(--mut); border-radius:12px; padding:16px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:var(--mut); color:var(--txt); font-size:.85rem; }
+    .muted { color:#cfe8ea; opacity:.85; }
     .kpi { display:flex; gap:16px; align-items:center; }
-    .kpi div { display:flex; flex-direction:column; }
-    .kpi .big { font-weight:700; font-size:2rem; line-height:1; min-width:5ch; }
+    .kpi .big { font-weight:800; font-size:2.2rem; min-width:6ch; }
+    .blink { animation: bl 1s step-start infinite; color:#fff; background:var(--alert); border-radius:8px; padding:2px 6px; }
+    @keyframes bl { 50% { opacity:.35; } }
+    .sticky-table { max-height: 420px; overflow:auto; border:1px solid var(--mut); border-radius:8px; }
     table { width:100%; border-collapse:collapse; font-size:.92rem; }
     th, td { padding:8px; border-bottom:1px dashed #2d3a55; text-align:left; white-space:nowrap; }
-    th { position:sticky; top:0; background:var(--card); }
-    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:var(--mut); color:var(--txt); font-size:.85rem; }
-    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    a { color:var(--acc); text-decoration:none; }
-    a:hover { text-decoration:underline; }
-    .error { color:#ffd7d7; }
-    footer { padding:20px; text-align:center; color:#cfe8ea; opacity:.8; }
-    .small { font-size:.85rem; }
-    .sticky-table { max-height: 420px; overflow:auto; border:1px solid var(--mut); border-radius:8px; }
+    .searchbox { position: relative; display:inline-block; }
+    .searchbox input { padding:8px 12px; border-radius:8px; border:1px solid var(--mut); background:#0f1b3d; color:var(--txt); min-width:220px; }
+    .suggestions { position:absolute; top:40px; left:0; right:0; background:#0f1b3d; border:1px solid var(--mut); border-radius:8px; max-height:240px; overflow:auto; z-index:5; }
+    .suggestions div { padding:8px 10px; cursor:pointer; border-bottom:1px solid #1f2a4c; }
+    .suggestions div:hover { background:#122252; }
+    .more { cursor:pointer; color:var(--acc); text-decoration:underline; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
   <header>
-    <div class="row" style="justify-content:space-between">
+    <div class="row" style="justify-content:space-between; gap:12px">
       <h1>Weather • {{ city }}, {{ region }} <span class="muted">| IST: {{ now_ist }}</span></h1>
       <div class="row">
         <a class="pill" href="/?city=durgapur">Durgapur</a>
         <a class="pill" href="/?city=kolkata">Kolkata</a>
+        <div class="searchbox">
+          <input id="place" type="text" placeholder="Search place…" autocomplete="off"/>
+          <div id="sugs" class="suggestions hidden"></div>
+        </div>
       </div>
     </div>
   </header>
 
   <div class="wrap">
-    <!-- Current -->
-    <section class="grid">
-      <div class="card">
-        <h2>Current Weather</h2>
-        {% set cur = payload.current %}
-        <div class="kpi">
-          <div class="big">
-            {% if cur.temperature is not none %}
-              {{ cur.temperature }}°C
-            {% else %} — {% endif %}
-          </div>
-          <div>
-            <span>{{ cur.weather_desc or "—" }}</span>
-            <span class="muted small">Windspeed: {{ cur.windspeed if cur.windspeed is not none else "—" }} km/h</span>
-            <span class="muted small">Direction: {{ cur.winddirection if cur.winddirection is not none else "—" }}°</span>
-            <span class="muted small">Updated: {{ cur.time_ist or "—" }}</span>
-          </div>
+
+    <!-- TODAY FIRST -->
+    <section class="card">
+      <h2 style="margin-top:0">Today</h2>
+      {% set t = payload.today %}
+      {% set alert = t.alert %}
+      <div class="kpi">
+        <div class="big {{ 'blink' if alert else '' }}">
+          {% if t.temperature is not none %}
+            {{ t.temperature }}°C
+          {% else %} — {% endif %}
         </div>
-        {% if payload.errors.forecast %}
-          <p class="error small">Forecast error: {{ payload.errors.forecast }}</p>
-        {% endif %}
+        <div>
+          <div>
+            Precip. Probability:
+            <span class="{{ 'blink' if t.precip_alert else '' }}">
+              {{ t.precip_prob if t.precip_prob is not none else "—" }}%
+            </span>
+          </div>
+          <div class="muted">Tap <span class="more" data-target="#today-more">More</span> for details</div>
+        </div>
       </div>
 
-      <div class="card">
-        <h2>Meta</h2>
-        <div class="row small">
-          <span class="pill">TZ: {{ payload.meta.timezone or "—" }}</span>
-          <span class="pill">Elevation: {{ payload.meta.elevation if payload.meta.elevation is not none else "—" }}</span>
+      <div id="today-more" class="hidden" style="margin-top:10px">
+        {% set cur = payload.current %}
+        <div class="row">
+          <span class="pill">Condition: {{ cur.weather_desc or "—" }}</span>
+          <span class="pill">Wind: {{ cur.windspeed if cur.windspeed is not none else "—" }} km/h</span>
+          <span class="pill">Dir: {{ cur.winddirection if cur.winddirection is not none else "—" }}°</span>
+          <span class="pill">Updated: {{ cur.time_ist or "—" }}</span>
           <span class="pill">Gen: {{ payload.meta.generationtime_ms }} ms</span>
         </div>
-        <p class="small">APIs:
-          <a href="{{ payload.meta.forecast_url }}" target="_blank" rel="noopener">Forecast</a> ·
-          <a href="{{ payload.meta.air_quality_url }}" target="_blank" rel="noopener">Air Quality</a>
-        </p>
       </div>
     </section>
 
-    <!-- Daily -->
+    <!-- NEXT 7 DAYS -->
     <section class="card">
-      <h2>Daily (Next 7 Days)</h2>
-      <div class="sticky-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Min / Max (°C)</th>
-              <th>Feels (°C)</th>
-              <th>Precip (mm / hrs)</th>
-              <th>Wind (km/h / Gust)</th>
-              <th>Dir (°)</th>
-              <th>Sunrise / Sunset (IST)</th>
-              <th>UV Max</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for d in payload.daily %}
+      <h2 style="margin-top:0">Next 7 Days</h2>
+      <div class="grid">
+        {% for d in payload.daily %}
+          <div class="card" style="padding:12px">
+            <div class="row" style="justify-content:space-between">
+              <strong>{{ d.date or "—" }}</strong>
+              <span class="muted">{{ d.weather_desc or "" }}</span>
+            </div>
+            <div class="row" style="margin-top:6px">
+              <span class="pill">Min/Max: {{ d.temperature_2m_min if d.temperature_2m_min is not none else "—" }} / {{ d.temperature_2m_max if d.temperature_2m_max is not none else "—" }} °C</span>
+              <span class="pill">Precip (sum/hrs): {{ d.precipitation_sum if d.precipitation_sum is not none else "—" }} / {{ d.precipitation_hours if d.precipitation_hours is not none else "—" }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="muted" style="margin-top:8px">Tap <span class="more" data-target="#days-more">More</span> to see UV, wind, sunrise/sunset.</div>
+
+      <div id="days-more" class="hidden" style="margin-top:8px">
+        <div class="sticky-table">
+          <table>
+            <thead>
               <tr>
-                <td>{{ d.date or "—" }}</td>
-                <td>{{ (d.temperature_2m_min if d.temperature_2m_min is not none else "—") }} / {{ (d.temperature_2m_max if d.temperature_2m_max is not none else "—") }}</td>
-                <td>{{ (d.apparent_temperature_min if d.apparent_temperature_min is not none else "—") }} / {{ (d.apparent_temperature_max if d.apparent_temperature_max is not none else "—") }}</td>
-                <td>{{ (d.precipitation_sum if d.precipitation_sum is not none else "—") }} / {{ (d.precipitation_hours if d.precipitation_hours is not none else "—") }}</td>
-                <td>{{ (d.wind_speed_10m_max if d.wind_speed_10m_max is not none else "—") }} / {{ (d.wind_gusts_10m_max if d.wind_gusts_10m_max is not none else "—") }}</td>
-                <td>{{ d.wind_direction_10m_dominant if d.wind_direction_10m_dominant is not none else "—" }}</td>
-                <td>{{ d.sunrise_ist or d.sunrise or "—" }} / {{ d.sunset_ist or d.sunset or "—" }}</td>
-                <td>{{ d.uv_index_max if d.uv_index_max is not none else "—" }}</td>
+                <th>Date</th>
+                <th>Min / Max (°C)</th>
+                <th>Feels (°C)</th>
+                <th>Precip (mm / hrs)</th>
+                <th>Wind (km/h / Gust)</th>
+                <th>Dir (°)</th>
+                <th>Sunrise / Sunset (IST)</th>
+                <th>UV Max</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for d in payload.daily %}
+                <tr>
+                  <td>{{ d.date or "—" }}</td>
+                  <td>{{ (d.temperature_2m_min if d.temperature_2m_min is not none else "—") }} / {{ (d.temperature_2m_max if d.temperature_2m_max is not none else "—") }}</td>
+                  <td>{{ (d.apparent_temperature_min if d.apparent_temperature_min is not none else "—") }} / {{ (d.apparent_temperature_max if d.apparent_temperature_max is not none else "—") }}</td>
+                  <td>{{ (d.precipitation_sum if d.precipitation_sum is not none else "—") }} / {{ (d.precipitation_hours if d.precipitation_hours is not none else "—") }}</td>
+                  <td>{{ (d.wind_speed_10m_max if d.wind_speed_10m_max is not none else "—") }} / {{ (d.wind_gusts_10m_max if d.wind_gusts_10m_max is not none else "—") }}</td>
+                  <td>{{ d.wind_direction_10m_dominant if d.wind_direction_10m_dominant is not none else "—" }}</td>
+                  <td>{{ d.sunrise_ist or d.sunrise or "—" }} / {{ d.sunset_ist or d.sunset or "—" }}</td>
+                  <td>{{ d.uv_index_max if d.uv_index_max is not none else "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
-    <!-- Hourly -->
+    <!-- HOURLY TABLE (optional extra; hidden behind More) -->
     <section class="card">
-      <h2>Hourly (Next 24 Hours)</h2>
-      <div class="sticky-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Time (IST)</th>
-              <th>Temp</th>
-              <th>Feels</th>
-              <th>RH%</th>
-              <th>DewPt</th>
-              <th>Precip</th>
-              <th>Rain</th>
-              <th>Showers</th>
-              <th>Snow</th>
-              <th>SnowDepth</th>
-              <th>PrecProb%</th>
-              <th>Cloud%</th>
-              <th>Vis (m)</th>
-              <th>UV</th>
-              <th>UV (Clear)</th>
-              <th>Wind (km/h)</th>
-              <th>Gust</th>
-              <th>Dir°</th>
-              <th>MSL (hPa)</th>
-              <th>SurfP (hPa)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for h in payload.hourly %}
+      <h2 style="margin-top:0">Hourly (Next 24 Hours)</h2>
+      <div class="muted">Tap <span class="more" data-target="#hourly-more">More</span> to expand.</div>
+      <div id="hourly-more" class="hidden">
+        <div class="sticky-table" style="margin-top:8px">
+          <table>
+            <thead>
               <tr>
-                <td>{{ h.time_ist or "—" }}</td>
-                <td>{{ h.temperature_2m if h.temperature_2m is not none else "—" }}</td>
-                <td>{{ h.apparent_temperature if h.apparent_temperature is not none else "—" }}</td>
-                <td>{{ h.relative_humidity_2m if h.relative_humidity_2m is not none else "—" }}</td>
-                <td>{{ h.dew_point_2m if h.dew_point_2m is not none else "—" }}</td>
-                <td>{{ h.precipitation if h.precipitation is not none else "—" }}</td>
-                <td>{{ h.rain if h.rain is not none else "—" }}</td>
-                <td>{{ h.showers if h.showers is not none else "—" }}</td>
-                <td>{{ h.snowfall if h.snowfall is not none else "—" }}</td>
-                <td>{{ h.snow_depth if h.snow_depth is not none else "—" }}</td>
-                <td>{{ h.precipitation_probability if h.precipitation_probability is not none else "—" }}</td>
-                <td>{{ h.cloud_cover if h.cloud_cover is not none else "—" }}</td>
-                <td>{{ h.visibility if h.visibility is not none else "—" }}</td>
-                <td>{{ h.uv_index if h.uv_index is not none else "—" }}</td>
-                <td>{{ h.uv_index_clear_sky if h.uv_index_clear_sky is not none else "—" }}</td>
-                <td>{{ h.wind_speed_10m if h.wind_speed_10m is not none else "—" }}</td>
-                <td>{{ h.wind_gusts_10m if h.wind_gusts_10m is not none else "—" }}</td>
-                <td>{{ h.wind_direction_10m if h.wind_direction_10m is not none else "—" }}</td>
-                <td>{{ h.pressure_msl if h.pressure_msl is not none else "—" }}</td>
-                <td>{{ h.surface_pressure if h.surface_pressure is not none else "—" }}</td>
+                <th>Time (IST)</th>
+                <th>Temp</th>
+                <th>Feels</th>
+                <th>RH%</th>
+                <th>DewPt</th>
+                <th>Precip</th>
+                <th>Rain</th>
+                <th>Showers</th>
+                <th>Snow</th>
+                <th>SnowDepth</th>
+                <th>PrecProb%</th>
+                <th>Cloud%</th>
+                <th>Vis (m)</th>
+                <th>UV</th>
+                <th>UV (Clear)</th>
+                <th>Wind</th>
+                <th>Gust</th>
+                <th>Dir°</th>
+                <th>MSL</th>
+                <th>SurfP</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for h in payload.hourly %}
+                <tr>
+                  <td>{{ h.time_ist or "—" }}</td>
+                  <td>{{ h.temperature_2m if h.temperature_2m is not none else "—" }}</td>
+                  <td>{{ h.apparent_temperature if h.apparent_temperature is not none else "—" }}</td>
+                  <td>{{ h.relative_humidity_2m if h.relative_humidity_2m is not none else "—" }}</td>
+                  <td>{{ h.dew_point_2m if h.dew_point_2m is not none else "—" }}</td>
+                  <td>{{ h.precipitation if h.precipitation is not none else "—" }}</td>
+                  <td>{{ h.rain if h.rain is not none else "—" }}</td>
+                  <td>{{ h.showers if h.showers is not none else "—" }}</td>
+                  <td>{{ h.snowfall if h.snowfall is not none else "—" }}</td>
+                  <td>{{ h.snow_depth if h.snow_depth is not none else "—" }}</td>
+                  <td>{{ h.precipitation_probability if h.precipitation_probability is not none else "—" }}</td>
+                  <td>{{ h.cloud_cover if h.cloud_cover is not none else "—" }}</td>
+                  <td>{{ h.visibility if h.visibility is not none else "—" }}</td>
+                  <td>{{ h.uv_index if h.uv_index is not none else "—" }}</td>
+                  <td>{{ h.uv_index_clear_sky if h.uv_index_clear_sky is not none else "—" }}</td>
+                  <td>{{ h.wind_speed_10m if h.wind_speed_10m is not none else "—" }}</td>
+                  <td>{{ h.wind_gusts_10m if h.wind_gusts_10m is not none else "—" }}</td>
+                  <td>{{ h.wind_direction_10m if h.wind_direction_10m is not none else "—" }}</td>
+                  <td>{{ h.pressure_msl if h.pressure_msl is not none else "—" }}</td>
+                  <td>{{ h.surface_pressure if h.surface_pressure is not none else "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
       {% if payload.errors.forecast %}
         <p class="error small">Forecast error: {{ payload.errors.forecast }}</p>
       {% endif %}
     </section>
 
-    <!-- Air Quality -->
+    <!-- AIR QUALITY (kept as a separate section; not changed) -->
     <section class="card">
-      <h2>Air Quality (Next 24 Hours)</h2>
+      <h2 style="margin-top:0">Air Quality (Next 24 Hours)</h2>
       <div class="sticky-table">
         <table>
           <thead>
@@ -235,11 +260,61 @@
     </section>
   </div>
 
-  <footer class="small">
-    Data: Open-Meteo • Toggle city:
-    <a href="/?city=durgapur">Durgapur</a> ·
-    <a href="/?city=kolkata">Kolkata</a> •
-    <a href="/start">Start Keep-Alive</a> • <a href="/ping">Ping</a>
+  <footer class="muted" style="text-align:center; padding:16px">
+    Data: Open-Meteo • <a href="/start">Start Keep-Alive</a> • <a href="/ping">Ping</a>
   </footer>
+
+  <script>
+    // --- expand/collapse ---
+    document.querySelectorAll('.more').forEach(el => {
+      el.addEventListener('click', () => {
+        const sel = el.getAttribute('data-target');
+        const tgt = document.querySelector(sel);
+        if (tgt) tgt.classList.toggle('hidden');
+      });
+    });
+
+    // --- typeahead search using /geo proxy ---
+    const box = document.getElementById('place');
+    const sugs = document.getElementById('sugs');
+    let tmr = null;
+
+    function hideSugs(){ sugs.classList.add('hidden'); sugs.innerHTML = ''; }
+
+    box.addEventListener('input', () => {
+      const q = box.value.trim();
+      if (tmr) clearTimeout(tmr);
+      if (q.length < 3) { hideSugs(); return; }
+      tmr = setTimeout(async () => {
+        try {
+          const res = await fetch(`/geo?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          sugs.innerHTML = '';
+          (data.results || []).forEach(r => {
+            const div = document.createElement('div');
+            div.textContent = `${r.name}${r.admin1 ? ', ' + r.admin1 : ''}${r.country ? ', ' + r.country : ''}`;
+            div.addEventListener('click', () => {
+              const name = encodeURIComponent(r.name || 'Custom');
+              const region = encodeURIComponent(r.admin1 || r.country || '');
+              const url = `/?lat=${r.lat}&lon=${r.lon}&name=${name}&region=${region}`;
+              window.location.href = url;
+            });
+            sugs.appendChild(div);
+          });
+          if ((data.results || []).length) {
+            sugs.classList.remove('hidden');
+          } else {
+            hideSugs();
+          }
+        } catch(e) {
+          hideSugs();
+        }
+      }, 250);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!document.querySelector('.searchbox').contains(e.target)) hideSugs();
+    });
+  </script>
 </body>
 </html>
