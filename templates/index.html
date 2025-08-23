@@ -52,18 +52,18 @@
     <!-- TODAY FIRST -->
     <section class="card">
       <h2 style="margin-top:0">Today</h2>
-      {% set t = payload.today %}
+      {% set t = payload['today'] %}
       <div class="kpi">
         <div class="big {{ 'blink' if t['alert'] else '' }}">
-          {% if t.temperature is not none %}
-            {{ t.temperature }}°C
+          {% if t['temperature'] is not none %}
+            {{ t['temperature'] }}°C
           {% else %} — {% endif %}
         </div>
         <div>
           <div>
             Precip. Probability:
             <span class="{{ 'blink' if t['precip_alert'] else '' }}">
-              {{ t.precip_prob if t.precip_prob is not none else "—" }}%
+              {{ t['precip_prob'] if t['precip_prob'] is not none else "—" }}%
             </span>
           </div>
           <div class="muted">Tap <span class="more" data-target="#today-more">More</span> for details</div>
@@ -71,30 +71,36 @@
       </div>
 
       <div id="today-more" class="hidden" style="margin-top:10px">
-        {% set cur = payload.current %}
+        {% set cur = payload['current'] %}
         <div class="row">
-          <span class="pill">Condition: {{ cur.weather_desc or "—" }}</span>
-          <span class="pill">Wind: {{ cur.windspeed if cur.windspeed is not none else "—" }} km/h</span>
-          <span class="pill">Dir: {{ cur.winddirection if cur.winddirection is not none else "—" }}°</span>
-          <span class="pill">Updated: {{ cur.time_ist or "—" }}</span>
-          <span class="pill">Gen: {{ payload.meta.generationtime_ms }} ms</span>
+          <span class="pill">Condition: {{ cur['weather_desc'] or "—" }}</span>
+          <span class="pill">Wind: {{ cur['windspeed'] if cur['windspeed'] is not none else "—" }} km/h</span>
+          <span class="pill">Dir: {{ cur['winddirection'] if cur['winddirection'] is not none else "—" }}°</span>
+          <span class="pill">Updated: {{ cur['time_ist'] or "—" }}</span>
+          <span class="pill">Gen: {{ payload['meta']['generationtime_ms'] }} ms</span>
         </div>
       </div>
     </section>
 
-    <!-- NEXT 7 DAYS -->
+    <!-- NEXT 7 DAYS (summary cards) -->
     <section class="card">
       <h2 style="margin-top:0">Next 7 Days</h2>
       <div class="grid">
-        {% for d in payload.daily %}
+        {% for d in payload['daily'] %}
+          {% set temp_alert = (d['temperature_2m_max'] is not none and d['temperature_2m_max'] >= 35) or (d['temperature_2m_min'] is not none and d['temperature_2m_min'] <= 10) %}
+          {% set precip_flag = d['precipitation_hours'] is not none and d['precipitation_hours'] > 0 %}
           <div class="card" style="padding:12px">
             <div class="row" style="justify-content:space-between">
-              <strong>{{ d.date or "—" }}</strong>
-              <span class="muted">{{ d.weather_desc or "" }}</span>
+              <strong>{{ d['date'] or "—" }}</strong>
+              <span class="muted">{{ d.get('weather_desc','') }}</span>
             </div>
             <div class="row" style="margin-top:6px">
-              <span class="pill">Min/Max: {{ d.temperature_2m_min if d.temperature_2m_min is not none else "—" }} / {{ d.temperature_2m_max if d.temperature_2m_max is not none else "—" }} °C</span>
-              <span class="pill">Precip (sum/hrs): {{ d.precipitation_sum if d.precipitation_sum is not none else "—" }} / {{ d.precipitation_hours if d.precipitation_hours is not none else "—" }}</span>
+              <span class="pill {{ 'blink' if temp_alert else '' }}">
+                Min/Max: {{ d['temperature_2m_min'] if d['temperature_2m_min'] is not none else "—" }} / {{ d['temperature_2m_max'] if d['temperature_2m_max'] is not none else "—" }} °C
+              </span>
+              <span class="pill {{ 'blink' if precip_flag else '' }}">
+                Precip (sum/hrs): {{ d['precipitation_sum'] if d['precipitation_sum'] is not none else "—" }} / {{ d['precipitation_hours'] if d['precipitation_hours'] is not none else "—" }}
+              </span>
             </div>
           </div>
         {% endfor %}
@@ -117,16 +123,16 @@
               </tr>
             </thead>
             <tbody>
-              {% for d in payload.daily %}
+              {% for d in payload['daily'] %}
                 <tr>
-                  <td>{{ d.date or "—" }}</td>
-                  <td>{{ (d.temperature_2m_min if d.temperature_2m_min is not none else "—") }} / {{ (d.temperature_2m_max if d.temperature_2m_max is not none else "—") }}</td>
-                  <td>{{ (d.apparent_temperature_min if d.apparent_temperature_min is not none else "—") }} / {{ (d.apparent_temperature_max if d.apparent_temperature_max is not none else "—") }}</td>
-                  <td>{{ (d.precipitation_sum if d.precipitation_sum is not none else "—") }} / {{ (d.precipitation_hours if d.precipitation_hours is not none else "—") }}</td>
-                  <td>{{ (d.wind_speed_10m_max if d.wind_speed_10m_max is not none else "—") }} / {{ (d.wind_gusts_10m_max if d.wind_gusts_10m_max is not none else "—") }}</td>
-                  <td>{{ d.wind_direction_10m_dominant if d.wind_direction_10m_dominant is not none else "—" }}</td>
-                  <td>{{ d.sunrise_ist or d.sunrise or "—" }} / {{ d.sunset_ist or d.sunset or "—" }}</td>
-                  <td>{{ d.uv_index_max if d.uv_index_max is not none else "—" }}</td>
+                  <td>{{ d['date'] or "—" }}</td>
+                  <td>{{ (d['temperature_2m_min'] if d['temperature_2m_min'] is not none else "—") }} / {{ (d['temperature_2m_max'] if d['temperature_2m_max'] is not none else "—") }}</td>
+                  <td>{{ (d['apparent_temperature_min'] if d['apparent_temperature_min'] is not none else "—") }} / {{ (d['apparent_temperature_max'] if d['apparent_temperature_max'] is not none else "—") }}</td>
+                  <td>{{ (d['precipitation_sum'] if d['precipitation_sum'] is not none else "—") }} / {{ (d['precipitation_hours'] if d['precipitation_hours'] is not none else "—") }}</td>
+                  <td>{{ (d['wind_speed_10m_max'] if d['wind_speed_10m_max'] is not none else "—") }} / {{ (d['wind_gusts_10m_max'] if d['wind_gusts_10m_max'] is not none else "—") }}</td>
+                  <td>{{ d['wind_direction_10m_dominant'] if d['wind_direction_10m_dominant'] is not none else "—" }}</td>
+                  <td>{{ d.get('sunrise_ist') or d.get('sunrise') or "—" }} / {{ d.get('sunset_ist') or d.get('sunset') or "—" }}</td>
+                  <td>{{ d['uv_index_max'] if d['uv_index_max'] is not none else "—" }}</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -167,36 +173,36 @@
               </tr>
             </thead>
             <tbody>
-              {% for h in payload.hourly %}
+              {% for h in payload['hourly'] %}
                 <tr>
-                  <td>{{ h.time_ist or "—" }}</td>
-                  <td>{{ h.temperature_2m if h.temperature_2m is not none else "—" }}</td>
-                  <td>{{ h.apparent_temperature if h.apparent_temperature is not none else "—" }}</td>
-                  <td>{{ h.relative_humidity_2m if h.relative_humidity_2m is not none else "—" }}</td>
-                  <td>{{ h.dew_point_2m if h.dew_point_2m is not none else "—" }}</td>
-                  <td>{{ h.precipitation if h.precipitation is not none else "—" }}</td>
-                  <td>{{ h.rain if h.rain is not none else "—" }}</td>
-                  <td>{{ h.showers if h.showers is not none else "—" }}</td>
-                  <td>{{ h.snowfall if h.snowfall is not none else "—" }}</td>
-                  <td>{{ h.snow_depth if h.snow_depth is not none else "—" }}</td>
-                  <td>{{ h.precipitation_probability if h.precipitation_probability is not none else "—" }}</td>
-                  <td>{{ h.cloud_cover if h.cloud_cover is not none else "—" }}</td>
-                  <td>{{ h.visibility if h.visibility is not none else "—" }}</td>
-                  <td>{{ h.uv_index if h.uv_index is not none else "—" }}</td>
-                  <td>{{ h.uv_index_clear_sky if h.uv_index_clear_sky is not none else "—" }}</td>
-                  <td>{{ h.wind_speed_10m if h.wind_speed_10m is not none else "—" }}</td>
-                  <td>{{ h.wind_gusts_10m if h.wind_gusts_10m is not none else "—" }}</td>
-                  <td>{{ h.wind_direction_10m if h.wind_direction_10m is not none else "—" }}</td>
-                  <td>{{ h.pressure_msl if h.pressure_msl is not none else "—" }}</td>
-                  <td>{{ h.surface_pressure if h.surface_pressure is not none else "—" }}</td>
+                  <td>{{ h.get('time_ist') or "—" }}</td>
+                  <td>{{ h.get('temperature_2m', "—") }}</td>
+                  <td>{{ h.get('apparent_temperature', "—") }}</td>
+                  <td>{{ h.get('relative_humidity_2m', "—") }}</td>
+                  <td>{{ h.get('dew_point_2m', "—") }}</td>
+                  <td>{{ h.get('precipitation', "—") }}</td>
+                  <td>{{ h.get('rain', "—") }}</td>
+                  <td>{{ h.get('showers', "—") }}</td>
+                  <td>{{ h.get('snowfall', "—") }}</td>
+                  <td>{{ h.get('snow_depth', "—") }}</td>
+                  <td>{{ h.get('precipitation_probability', "—") }}</td>
+                  <td>{{ h.get('cloud_cover', "—") }}</td>
+                  <td>{{ h.get('visibility', "—") }}</td>
+                  <td>{{ h.get('uv_index', "—") }}</td>
+                  <td>{{ h.get('uv_index_clear_sky', "—") }}</td>
+                  <td>{{ h.get('wind_speed_10m', "—") }}</td>
+                  <td>{{ h.get('wind_gusts_10m', "—") }}</td>
+                  <td>{{ h.get('wind_direction_10m', "—") }}</td>
+                  <td>{{ h.get('pressure_msl', "—") }}</td>
+                  <td>{{ h.get('surface_pressure', "—") }}</td>
                 </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
       </div>
-      {% if payload.errors.forecast %}
-        <p class="error small">Forecast error: {{ payload.errors.forecast }}</p>
+      {% if payload['errors']['forecast'] %}
+        <p class="error small">Forecast error: {{ payload['errors']['forecast'] }}</p>
       {% endif %}
     </section>
 
@@ -228,33 +234,33 @@
             </tr>
           </thead>
           <tbody>
-            {% for a in payload.air_quality %}
+            {% for a in payload['air_quality'] %}
               <tr>
-                <td>{{ a.time_ist or "—" }}</td>
-                <td>{{ a.us_aqi if a.us_aqi is not none else "—" }}</td>
-                <td>{{ a.us_aqi_pm2_5 if a.us_aqi_pm2_5 is not none else "—" }}</td>
-                <td>{{ a.us_aqi_pm10 if a.us_aqi_pm10 is not none else "—" }}</td>
-                <td>{{ a.us_aqi_no2 if a.us_aqi_no2 is not none else "—" }}</td>
-                <td>{{ a.us_aqi_o3 if a.us_aqi_o3 is not none else "—" }}</td>
-                <td>{{ a.us_aqi_so2 if a.us_aqi_so2 is not none else "—" }}</td>
-                <td>{{ a.us_aqi_co if a.us_aqi_co is not none else "—" }}</td>
-                <td>{{ a.pm2_5 if a.pm2_5 is not none else "—" }}</td>
-                <td>{{ a.pm10 if a.pm10 is not none else "—" }}</td>
-                <td>{{ a.nitrogen_dioxide if a.nitrogen_dioxide is not none else "—" }}</td>
-                <td>{{ a.sulphur_dioxide if a.sulphur_dioxide is not none else "—" }}</td>
-                <td>{{ a.ozone if a.ozone is not none else "—" }}</td>
-                <td>{{ a.carbon_monoxide if a.carbon_monoxide is not none else "—" }}</td>
-                <td>{{ a.aerosol_optical_depth if a.aerosol_optical_depth is not none else "—" }}</td>
-                <td>{{ a.dust if a.dust is not none else "—" }}</td>
-                <td>{{ a.uv_index if a.uv_index is not none else "—" }}</td>
-                <td>{{ a.uv_index_clear_sky if a.uv_index_clear_sky is not none else "—" }}</td>
+                <td>{{ a.get('time_ist') or "—" }}</td>
+                <td>{{ a.get('us_aqi', "—") }}</td>
+                <td>{{ a.get('us_aqi_pm2_5', "—") }}</td>
+                <td>{{ a.get('us_aqi_pm10', "—") }}</td>
+                <td>{{ a.get('us_aqi_no2', "—") }}</td>
+                <td>{{ a.get('us_aqi_o3', "—") }}</td>
+                <td>{{ a.get('us_aqi_so2', "—") }}</td>
+                <td>{{ a.get('us_aqi_co', "—") }}</td>
+                <td>{{ a.get('pm2_5', "—") }}</td>
+                <td>{{ a.get('pm10', "—") }}</td>
+                <td>{{ a.get('nitrogen_dioxide', "—") }}</td>
+                <td>{{ a.get('sulphur_dioxide', "—") }}</td>
+                <td>{{ a.get('ozone', "—") }}</td>
+                <td>{{ a.get('carbon_monoxide', "—") }}</td>
+                <td>{{ a.get('aerosol_optical_depth', "—") }}</td>
+                <td>{{ a.get('dust', "—") }}</td>
+                <td>{{ a.get('uv_index', "—") }}</td>
+                <td>{{ a.get('uv_index_clear_sky', "—") }}</td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      {% if payload.errors.air %}
-        <p class="error small">Air Quality error: {{ payload.errors.air }}</p>
+      {% if payload['errors']['air'] %}
+        <p class="error small">Air Quality error: {{ payload['errors']['air'] }}</p>
       {% endif %}
     </section>
   </div>
