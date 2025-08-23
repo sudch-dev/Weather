@@ -16,15 +16,15 @@
     .card { background:var(--card); border:1px solid var(--mut); border-radius:12px; padding:16px; }
     .kpi { display:flex; gap:16px; align-items:center; }
     .kpi div { display:flex; flex-direction:column; }
-    .kpi .big { font-weight:700; font-size:2rem; line-height:1; }
+    .kpi .big { font-weight:700; font-size:2rem; line-height:1; min-width:5ch; }
     table { width:100%; border-collapse:collapse; font-size:.92rem; }
     th, td { padding:8px; border-bottom:1px dashed #2d3a55; text-align:left; white-space:nowrap; }
     th { position:sticky; top:0; background:var(--card); }
-    .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:var(--mut); color:var(--txt); font-size:.8rem; }
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:var(--mut); color:var(--txt); font-size:.85rem; }
     .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
     a { color:var(--acc); text-decoration:none; }
     a:hover { text-decoration:underline; }
-    .error { color: #ffd7d7; }
+    .error { color:#ffd7d7; }
     footer { padding:20px; text-align:center; color:#cfe8ea; opacity:.8; }
     .small { font-size:.85rem; }
     .sticky-table { max-height: 420px; overflow:auto; border:1px solid var(--mut); border-radius:8px; }
@@ -32,7 +32,13 @@
 </head>
 <body>
   <header>
-    <h1>Weather • {{ city }}, {{ region }} <span class="muted">| IST: {{ now_ist }}</span></h1>
+    <div class="row" style="justify-content:space-between">
+      <h1>Weather • {{ city }}, {{ region }} <span class="muted">| IST: {{ now_ist }}</span></h1>
+      <div class="row">
+        <a class="pill" href="/?city=durgapur">Durgapur</a>
+        <a class="pill" href="/?city=kolkata">Kolkata</a>
+      </div>
+    </div>
   </header>
 
   <div class="wrap">
@@ -42,7 +48,11 @@
         <h2>Current Weather</h2>
         {% set cur = payload.current %}
         <div class="kpi">
-          <div class="big">{{ (cur.temperature is not none) and (cur.temperature|string ~ "°C") or "—" }}</div>
+          <div class="big">
+            {% if cur.temperature is not none %}
+              {{ cur.temperature }}°C
+            {% else %} — {% endif %}
+          </div>
           <div>
             <span>{{ cur.weather_desc or "—" }}</span>
             <span class="muted small">Windspeed: {{ cur.windspeed if cur.windspeed is not none else "—" }} km/h</span>
@@ -60,7 +70,6 @@
         <div class="row small">
           <span class="pill">TZ: {{ payload.meta.timezone or "—" }}</span>
           <span class="pill">Elevation: {{ payload.meta.elevation if payload.meta.elevation is not none else "—" }}</span>
-          <!-- SAFE: coerce to float in Python; just print here -->
           <span class="pill">Gen: {{ payload.meta.generationtime_ms }} ms</span>
         </div>
         <p class="small">APIs:
@@ -115,7 +124,7 @@
               <th>Time (IST)</th>
               <th>Temp</th>
               <th>Feels</th>
-              <th>RH%</</th>
+              <th>RH%</th>
               <th>DewPt</th>
               <th>Precip</th>
               <th>Rain</th>
@@ -227,7 +236,9 @@
   </div>
 
   <footer class="small">
-    Data: Open-Meteo • Location fixed to Durgapur, WB •
+    Data: Open-Meteo • Toggle city:
+    <a href="/?city=durgapur">Durgapur</a> ·
+    <a href="/?city=kolkata">Kolkata</a> •
     <a href="/start">Start Keep-Alive</a> • <a href="/ping">Ping</a>
   </footer>
 </body>
