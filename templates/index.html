@@ -26,10 +26,10 @@
 
     /* iOS-like day strip + mode picker */
     .strip{display:flex;gap:8px;overflow:auto;padding:6px 2px;}
-    .day{min-width:64px;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--mut);background:#0f1b3d;}
+    .day{min-width:90px;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--mut);background:#0f1b3d;}
     .day.active{outline:2px solid var(--acc);}
-    .mode{display:flex;flex-direction:column;gap:4px;}
-    .mode button{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--mut);background:#0f1b3d;color:var(--txt);border-radius:10px;width:100%;cursor:pointer}
+    .mode{display:flex;flex-direction:column;gap:6px;}
+    .mode button{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;border:1px solid var(--mut);background:#0f1b3d;color:var(--txt);border-radius:10px;width:100%;cursor:pointer}
     .mode button.active{outline:2px solid var(--acc);}
     .kpi{display:flex;align-items:center;gap:16px;}
     .kpi .big{font-weight:800;font-size:2.2rem;min-width:6ch;}
@@ -55,7 +55,7 @@
 
   <div class="wrap">
 
-    <!-- TODAY SUMMARY (top like iOS) -->
+    <!-- TODAY SUMMARY -->
     <section class="card">
       {% set t = payload['today'] %}
       {% set cur = payload['current'] %}
@@ -73,17 +73,19 @@
         </div>
       </div>
       <div style="margin-top:8px">
-        Chance of Precipitation: <strong class="{{ 'blink' if t['precip_alert'] else '' }}">{{ t['precip_prob'] if t['precip_prob'] is not none else '—' }}%</strong>
+        Chance of Precipitation:
+        <strong class="{{ 'blink' if t['precip_alert'] else '' }}">{{ t['precip_prob'] if t['precip_prob'] is not none else '—' }}%</strong>
       </div>
     </section>
 
-    <!-- iOS-like CHART CARD -->
+    <!-- CHART CARD -->
     <section class="card" id="chartCard">
       <!-- Day strip -->
       <div class="strip" id="dayStrip">
         {% for d in payload['daily'] %}
-          {% set label = loop.index0 %}
-          <div class="day {{ 'active' if loop.first else '' }}" data-dayindex="{{ loop.index0 }}">
+          <div class="day {{ 'active' if loop.first else '' }}"
+               data-dayindex="{{ loop.index0 }}"
+               data-date="{{ d['date'] }}">
             <div class="muted" style="font-size:.8rem">
               {{ ['S','M','T','W','T','F','S'][loop.index0 % 7] }}
             </div>
@@ -93,7 +95,7 @@
         {% endfor %}
       </div>
 
-      <!-- Mode picker -->
+      <!-- Mode picker + canvas -->
       <div class="grid" style="grid-template-columns:260px 1fr;">
         <div class="mode">
           <button class="active" data-mode="conditions">Conditions<span class="muted">Temp • Feels Like</span></button>
@@ -113,7 +115,7 @@
       </div>
     </section>
 
-    <!-- “More” sections kept (optional) -->
+    <!-- DETAILS -->
     <section class="card">
       <h3 style="margin-top:0">Details</h3>
       <div class="row">
@@ -125,7 +127,7 @@
       </div>
     </section>
 
-    <!-- Air Quality left as-is; can be made a mode later -->
+    <!-- AIR QUALITY (unchanged table) -->
     <section class="card">
       <h3 style="margin-top:0">Air Quality (Next 24 Hours)</h3>
       <div class="muted">US AQI (overall) shown hourly below.</div>
@@ -171,14 +173,13 @@
 
   <!-- Data for JS -->
   <script>
-    // embed the hourly payload for plotting (safe)
     const HOURLY = {{ payload['hourly']|tojson }};
     const DAILY  = {{ payload['daily']|tojson }};
     const NOW_IST = "{{ now_ist }}";
   </script>
 
+  <!-- Typeahead (unchanged) -->
   <script>
-    // ---------- typeahead ----------
     const box = document.getElementById('place');
     const sugs = document.getElementById('sugs');
     let tmr = null;
@@ -205,47 +206,50 @@
       });
       document.addEventListener('click',e=>{ if(!document.querySelector('.searchbox').contains(e.target)) hideSugs(); });
     }
+  </script>
 
-    // ---------- small helpers ----------
-    function todayDateStrIST(){ return NOW_IST.slice(0,10); } // "YYYY-MM-DD"
-    function filterToday(series){ // HOURLY item uses "time_ist"
-      const d = todayDateStrIST();
-      return series.filter(x => (x.time_ist||'').startsWith(d));
-    }
-    function getSeriesToday(key){ return filterToday(HOURLY).map(h => Number(h[key]??NaN)); }
-    function getTimesToday(){ return filterToday(HOURLY).map(h => (h.time_ist||'').slice(11,16)); }
+  <!-- Chart logic (day + mode switching) -->
+  <script>
+    // helpers
+    function byDate(isoDate){ return HOURLY.filter(h => (h.time_ist||"").slice(0,10) === isoDate); }
+    function seriesForDay(isoDate, key){ return byDate(isoDate).map(h => (h[key]==null ? NaN : Number(h[key]))); }
+    function labelsForDay(isoDate){ return byDate(isoDate).map(h => (h.time_ist||"").slice(11,16)); }
 
-    // ---------- chart drawing (vanilla canvas, lightweight) ----------
+    // canvas engine with HiDPI support
     const canvas = document.getElementById('chart');
     const ctx = canvas.getContext('2d');
-    function clearChart(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
+    function fixDPI(){
+      const ratio = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      canvas.width = Math.round(w * ratio);
+      canvas.height = Math.round(h * ratio);
+      ctx.setTransform(ratio,0,0,ratio,0,0);
+    }
+    fixDPI(); addEventListener('resize', fixDPI);
 
+    function clearChart(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
     function scaleY(vals, padding=20){
-      const v = vals.filter(x=>!Number.isNaN(x));
-      if(!v.length){ return {f:()=>canvas.height/2, min:0, max:1}; }
+      const v = vals.filter(x => !Number.isNaN(x));
+      if(!v.length) return {f:()=>canvas.clientHeight/2, min:0, max:1};
       let min = Math.min(...v), max = Math.max(...v);
       if(min===max){ min-=1; max+=1; }
-      const H = canvas.height - padding*2;
-      return {
-        min,max,
-        f:(y)=> padding + (max - y) * (H / (max - min))
-      };
+      const H = canvas.clientHeight - padding*2;
+      return { min,max, f:(y)=> padding + (max - y) * (H / (max - min)) };
     }
     function drawAxes(labels){
       ctx.strokeStyle = "rgba(255,255,255,.15)";
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(40,10); ctx.lineTo(40,canvas.height-20); ctx.lineTo(canvas.width-10,canvas.height-20); ctx.stroke();
-      // x labels (every 3rd)
+      ctx.beginPath(); ctx.moveTo(40,10); ctx.lineTo(40,canvas.clientHeight-20); ctx.lineTo(canvas.clientWidth-10,canvas.clientHeight-20); ctx.stroke();
       ctx.fillStyle = "rgba(255,255,255,.6)";
       ctx.font = "12px system-ui";
-      const step = (canvas.width-60)/Math.max(1,labels.length-1);
-      labels.forEach((t,i)=>{ if(i%3===0){ ctx.fillText(t, 40+i*step-8, canvas.height-4); }});
+      const step = (canvas.clientWidth-60)/Math.max(1,labels.length-1);
+      labels.forEach((t,i)=>{ if(i%3===0){ ctx.fillText(t, 40+i*step-8, canvas.clientHeight-4); }});
     }
     function plotLine(labels, vals, yscale, color, dashed=false){
       ctx.save();
       if(dashed) ctx.setLineDash([6,4]);
       ctx.strokeStyle = color; ctx.lineWidth = 2;
-      const step = (canvas.width-60)/Math.max(1,labels.length-1);
+      const step = (canvas.clientWidth-60)/Math.max(1,labels.length-1);
       ctx.beginPath();
       labels.forEach((_,i)=>{
         const x = 40 + i*step;
@@ -256,85 +260,93 @@
       ctx.restore();
     }
 
-    // ---------- modes ----------
     const legend = document.getElementById('legend');
     const subtitle = document.getElementById('subtitle');
-    function setLegend(items){ // items: [{label,color}]
+    function setLegend(items){
       legend.innerHTML='';
-      items.forEach(it=>{ const span=document.createElement('span'); span.textContent=it.label; span.style.color=it.color; legend.appendChild(span); });
+      items.forEach(it=>{
+        const span=document.createElement('span');
+        span.textContent=it.label;
+        span.style.color=it.color;
+        legend.appendChild(span);
+      });
     }
 
-    function drawMode(mode){
+    // controller state
+    let currentDate = (document.querySelector('.day.active')?.dataset.date) || (NOW_IST.slice(0,10));
+    let currentMode = document.querySelector('.mode button.active')?.dataset.mode || 'conditions';
+
+    function draw(){
+      const labels = labelsForDay(currentDate);
       clearChart();
-      const times = getTimesToday();
-      drawAxes(times);
-      if(mode==='conditions'){
-        const actual = getSeriesToday('temperature_2m');
-        const feels  = getSeriesToday('apparent_temperature');
-        const all = actual.concat(feels);
-        const s = scaleY(all);
-        plotLine(times, actual, s, "#5bc0be", false);
-        plotLine(times, feels,  s, "#e0fbfc", true);
+      drawAxes(labels);
+
+      if(currentMode==='conditions'){
+        const actual = seriesForDay(currentDate,'temperature_2m');
+        const feels  = seriesForDay(currentDate,'apparent_temperature');
+        const s = scaleY(actual.concat(feels));
+        plotLine(labels, actual, s, "#5bc0be", false);
+        plotLine(labels, feels,  s, "#e0fbfc", true);
         setLegend([{label:'Actual',color:'#5bc0be'},{label:'Feels Like',color:'#e0fbfc'}]);
         subtitle.textContent = "The actual temperature.";
-      }else if(mode==='uv'){
-        const v = getSeriesToday('uv_index');
-        const s = scaleY(v);
-        plotLine(times, v, s, "#ffd166");
+      } else if(currentMode==='uv'){
+        const v = seriesForDay(currentDate,'uv_index');
+        const s = scaleY(v.length ? v : [0,10]);
+        plotLine(labels, v, s, "#ffd166");
         setLegend([{label:'UV Index',color:'#ffd166'}]);
         subtitle.textContent = "Estimated hourly UV index.";
-      }else if(mode==='wind'){
-        const v = getSeriesToday('wind_speed_10m');
+      } else if(currentMode==='wind'){
+        const v = seriesForDay(currentDate,'wind_speed_10m');
         const s = scaleY(v);
-        plotLine(times, v, s, "#a0c4ff");
+        plotLine(labels, v, s, "#a0c4ff");
         setLegend([{label:'Wind (km/h)',color:'#a0c4ff'}]);
         subtitle.textContent = "10 m wind speed.";
-      }else if(mode==='precip'){
-        const v = getSeriesToday('precipitation_probability');
-        const s = scaleY(v.length? v : [0,100]); // keep 0–100 if empty
-        plotLine(times, v, s, "#72efdd");
+      } else if(currentMode==='precip'){
+        const v = seriesForDay(currentDate,'precipitation_probability');
+        const s = scaleY(v.length ? v : [0,100]);
+        plotLine(labels, v, s, "#72efdd");
         setLegend([{label:'Chance of Precipitation %',color:'#72efdd'}]);
         subtitle.textContent = "Hourly chance of precipitation.";
-      }else if(mode==='humidity'){
-        const v = getSeriesToday('relative_humidity_2m');
-        const s = scaleY(v.length? v : [0,100]);
-        plotLine(times, v, s, "#bde0fe");
+      } else if(currentMode==='humidity'){
+        const v = seriesForDay(currentDate,'relative_humidity_2m');
+        const s = scaleY(v.length ? v : [0,100]);
+        plotLine(labels, v, s, "#bde0fe");
         setLegend([{label:'Humidity %',color:'#bde0fe'}]);
         subtitle.textContent = "Relative humidity near 2 m.";
-      }else if(mode==='visibility'){
-        const v = getSeriesToday('visibility');
+      } else if(currentMode==='visibility'){
+        const v = seriesForDay(currentDate,'visibility');
         const s = scaleY(v);
-        plotLine(times, v, s, "#ffd6a5");
+        plotLine(labels, v, s, "#ffd6a5");
         setLegend([{label:'Visibility (m)',color:'#ffd6a5'}]);
         subtitle.textContent = "Estimated horizontal visibility.";
-      }else if(mode==='pressure'){
-        const v = getSeriesToday('pressure_msl');
+      } else if(currentMode==='pressure'){
+        const v = seriesForDay(currentDate,'pressure_msl');
         const s = scaleY(v);
-        plotLine(times, v, s, "#caffbf");
+        plotLine(labels, v, s, "#caffbf");
         setLegend([{label:'MSL Pressure (hPa)',color:'#caffbf'}]);
         subtitle.textContent = "Mean sea-level pressure.";
       }
     }
 
-    // default mode
-    drawMode('conditions');
+    // initial draw
+    draw();
 
-    // mode button handlers
+    // interactions
     document.querySelectorAll('.mode button').forEach(btn=>{
       btn.onclick=()=>{
         document.querySelectorAll('.mode button').forEach(b=>b.classList.remove('active'));
         btn.classList.add('active');
-        drawMode(btn.dataset.mode);
+        currentMode = btn.dataset.mode;
+        draw();
       };
     });
 
-    // day-strip: by design we show "today" data only in chart (iOS style).
-    // The strip is visual and could drive future day selection; keeping click for future:
     document.querySelectorAll('.day').forEach(d=>{
       d.onclick=()=>{
         document.querySelectorAll('.day').forEach(x=>x.classList.remove('active'));
         d.classList.add('active');
-        // For now, still plotting today’s hours. To extend: pass all-hour arrays and filter by that day.
+        currentDate = d.dataset.date; // "YYYY-MM-DD"
+        draw();
       };
     });
   </script>
