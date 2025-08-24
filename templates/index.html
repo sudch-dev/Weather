@@ -36,6 +36,8 @@
     canvas{width:100%;height:260px;background:linear-gradient(180deg,#0f1b3d,rgba(15,27,61,.3));border-radius:12px;border:1px solid var(--mut);}
     .legend{display:flex;gap:16px;margin:8px 0;}
     .legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:currentColor;opacity:.9;}
+    .grid{display:grid;gap:12px;}
+    @media (min-width: 900px){ .grid{grid-template-columns:260px 1fr;} }
   </style>
 </head>
 <body>
@@ -96,7 +98,7 @@
       </div>
 
       <!-- Mode picker + canvas -->
-      <div class="grid" style="grid-template-columns:260px 1fr;">
+      <div class="grid">
         <div class="mode">
           <button class="active" data-mode="conditions">Conditions<span class="muted">Temp • Feels Like</span></button>
           <button data-mode="uv">UV Index</button>
@@ -127,7 +129,7 @@
       </div>
     </section>
 
-    <!-- AIR QUALITY (unchanged table) -->
+    <!-- AIR QUALITY -->
     <section class="card">
       <h3 style="margin-top:0">Air Quality (Next 24 Hours)</h3>
       <div class="muted">US AQI (overall) shown hourly below.</div>
@@ -178,7 +180,7 @@
     const NOW_IST = "{{ now_ist }}";
   </script>
 
-  <!-- Typeahead (unchanged) -->
+  <!-- Typeahead -->
   <script>
     const box = document.getElementById('place');
     const sugs = document.getElementById('sugs');
@@ -208,7 +210,7 @@
     }
   </script>
 
-  <!-- Chart logic (day + mode switching) -->
+  <!-- Chart logic (day + mode switching, with fallback) -->
   <script>
     // helpers
     function byDate(isoDate){ return HOURLY.filter(h => (h.time_ist||"").slice(0,10) === isoDate); }
@@ -225,7 +227,7 @@
       canvas.height = Math.round(h * ratio);
       ctx.setTransform(ratio,0,0,ratio,0,0);
     }
-    fixDPI(); addEventListener('resize', fixDPI);
+    fixDPI(); addEventListener('resize', ()=>{ fixDPI(); draw(); });
 
     function clearChart(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
     function scaleY(vals, padding=20){
@@ -278,7 +280,19 @@
 
     function draw(){
       const labels = labelsForDay(currentDate);
+
       clearChart();
+
+      if(!labels.length){
+        // graceful fallback
+        ctx.fillStyle = "rgba(255,255,255,.7)";
+        ctx.font = "14px system-ui";
+        ctx.fillText("No hourly data for this day.", 48, 40);
+        legend.innerHTML = "";
+        subtitle.textContent = "";
+        return;
+      }
+
       drawAxes(labels);
 
       if(currentMode==='conditions'){
@@ -345,7 +359,7 @@
       d.onclick=()=>{
         document.querySelectorAll('.day').forEach(x=>x.classList.remove('active'));
         d.classList.add('active');
-        currentDate = d.dataset.date; // "YYYY-MM-DD"
+        currentDate = d.dataset.date;
         draw();
       };
     });
