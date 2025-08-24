@@ -119,7 +119,10 @@ def pick_location_from_query() -> Tuple[float, float, str, str]:
     if q_lat and q_lon:
         name = request.args.get("name", "Custom")
         region = request.args.get("region", "")
-        return (_safe_float(q_lat, DURGAPUR[0]), _safe_float(q_lon, DURGAPUR[1]), name, region)
+        try:
+            return (float(q_lat), float(q_lon), name, region)
+        except Exception:
+            pass
 
     city = (request.args.get("city") or "").strip().lower()
     if city == "kolkata":
@@ -166,12 +169,12 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
         "time_ist": parse_to_ist(cur.get("time", "")),
     }
 
-    # -------- Hourly (table) --------
+    # -------- Hourly (up to 7 days ~ 168 points) --------
     hourly = forecast.get("hourly", {}) if isinstance(forecast, dict) else {}
     times_h = list(hourly.get("time", []))
     hourly_out: List[Dict[str, Any]] = []
-    for i, t in enumerate(times_h[:24]):
-        row = {"time_ist": parse_to_ist(t)}
+    for i, t in enumerate(times_h[: 7 * 24]):
+        row = {"time_ist": parse_to_ist(t), "time_utc": t}
         for key, series in hourly.items():
             if key == "time":
                 continue
@@ -203,7 +206,7 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
         daily_out.append(row)
 
     # -------- Today block (always present) --------
-    # Precip probability = hourly "precipitation_probability" at the time nearest to now (if available)
+    # Precip probability = hourly "precipitation_probability" nearest to now (if available)
     precip_prob = None
     i_near = _closest_index_to_now(times_h)
     if i_near is not None:
@@ -247,7 +250,7 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
         "hourly": hourly_out,
         "daily": daily_out,
         "air_quality": aq_out,
-        "today": today,  # 👈 guaranteed for the template
+        "today": today,
         "errors": {"forecast": forecast.get("_error"), "air": air.get("_error")},
     }
 
@@ -283,10 +286,6 @@ def start_keepalive():
 # -------------------- Geocoding (typeahead) --------------------
 @app.get("/geo")
 def geo_search():
-    """
-    Proxy to Open-Meteo geocoding for typeahead.
-    Usage: /geo?q=kol
-    """
     q = (request.args.get("q") or "").strip()
     if len(q) < 3:
         return jsonify({"results": []})
@@ -317,5 +316,4 @@ def index():
     )
 
 if __name__ == "__main__":
-    # For local dev; on Render use Gunicorn (see start command in dashboard/Procfile)
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
