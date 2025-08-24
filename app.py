@@ -39,7 +39,6 @@ def weather_desc(code: Any) -> str:
         return "Unknown"
 
 def parse_to_ist(iso_str: str) -> str:
-    """Open-Meteo returns iso8601 UTC when timezone=UTC. Convert safely to IST for display."""
     if not iso_str:
         return "N/A"
     try:
@@ -81,6 +80,8 @@ def build_forecast_url(lat: float, lon: float) -> str:
         f"&daily={_join(daily)}"
         "&timeformat=iso8601"
         "&timezone=UTC"
+        "&past_days=0"
+        "&forecast_days=8"     # 👈 ensure the coming week is present
     )
 
 def build_air_quality_url(lat: float, lon: float) -> str:
@@ -108,12 +109,6 @@ def fetch_json(url: str) -> Dict[str, Any]:
         return {"_error": str(e)}
 
 def pick_location_from_query() -> Tuple[float, float, str, str]:
-    """
-    Priority:
-      1) ?lat & ?lon (& name & region)
-      2) ?city=kolkata|durgapur
-      3) default Durgapur
-    """
     q_lat = request.args.get("lat")
     q_lon = request.args.get("lon")
     if q_lat and q_lon:
@@ -123,14 +118,12 @@ def pick_location_from_query() -> Tuple[float, float, str, str]:
             return (float(q_lat), float(q_lon), name, region)
         except Exception:
             pass
-
     city = (request.args.get("city") or "").strip().lower()
     if city == "kolkata":
         return KOLKATA
     return DURGAPUR
 
 def _closest_index_to_now(iso_times: List[str]) -> Optional[int]:
-    """Return index of ISO string closest to utcnow; None if not possible."""
     if not iso_times:
         return None
     try:
@@ -169,11 +162,11 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
         "time_ist": parse_to_ist(cur.get("time", "")),
     }
 
-    # -------- Hourly (up to 7 days ~ 168 points) --------
+    # -------- Hourly (send ALL hours so UI can filter safely) --------
     hourly = forecast.get("hourly", {}) if isinstance(forecast, dict) else {}
     times_h = list(hourly.get("time", []))
     hourly_out: List[Dict[str, Any]] = []
-    for i, t in enumerate(times_h[: 7 * 24]):
+    for i, t in enumerate(times_h):     # 👈 no slicing
         row = {"time_ist": parse_to_ist(t), "time_utc": t}
         for key, series in hourly.items():
             if key == "time":
@@ -205,8 +198,7 @@ def assemble_payload(lat: float, lon: float) -> Dict[str, Any]:
             row["sunset_ist"] = parse_to_ist(row["sunset"])
         daily_out.append(row)
 
-    # -------- Today block (always present) --------
-    # Precip probability = hourly "precipitation_probability" nearest to now (if available)
+    # -------- Today (alerts) --------
     precip_prob = None
     i_near = _closest_index_to_now(times_h)
     if i_near is not None:
@@ -263,7 +255,7 @@ def _keepalive():
     url = APP_BASE_URL.rstrip("/") + "/ping"
     while True:
         try:
-            time.sleep(600)  # 10 minutes
+            time.sleep(600)
             requests.get(url, timeout=10)
             print(f"[KEEPALIVE] Pinged {url}")
         except Exception as e:
