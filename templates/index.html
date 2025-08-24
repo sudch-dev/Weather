@@ -6,35 +6,41 @@
   <title>Weather • {{ city }}, {{ region }}</title>
   <style>
     :root { --bg:#0b132b; --card:#1c2541; --mut:#3a506b; --acc:#5bc0be; --txt:#e0fbfc; --alert:#ff6b6b; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--txt); }
-    header { padding:12px 16px; border-bottom:1px solid var(--mut); position:sticky; top:0; background:linear-gradient(180deg,var(--bg),rgba(11,19,43,0.85)); backdrop-filter:saturate(1.2) blur(2px); }
-    h1 { margin:0; font-size:1.1rem; }
-    .wrap { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; }
-    .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
-    .card { background:var(--card); border:1px solid var(--mut); border-radius:12px; padding:16px; }
-    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:var(--mut); color:var(--txt); font-size:.85rem; }
-    .muted { color:#cfe8ea; opacity:.85; }
-    .kpi { display:flex; gap:16px; align-items:center; }
-    .kpi .big { font-weight:800; font-size:2.2rem; min-width:6ch; }
-    .blink { animation: bl 1s step-start infinite; color:#fff; background:var(--alert); border-radius:8px; padding:2px 6px; }
-    @keyframes bl { 50% { opacity:.35; } }
-    .sticky-table { max-height: 420px; overflow:auto; border:1px solid var(--mut); border-radius:8px; }
-    table { width:100%; border-collapse:collapse; font-size:.92rem; }
-    th, td { padding:8px; border-bottom:1px dashed #2d3a55; text-align:left; white-space:nowrap; }
-    .searchbox { position: relative; display:inline-block; }
-    .searchbox input { padding:8px 12px; border-radius:8px; border:1px solid var(--mut); background:#0f1b3d; color:var(--txt); min-width:220px; }
-    .suggestions { position:absolute; top:40px; left:0; right:0; background:#0f1b3d; border:1px solid var(--mut); border-radius:8px; max-height:240px; overflow:auto; z-index:5; }
-    .suggestions div { padding:8px 10px; cursor:pointer; border-bottom:1px solid #1f2a4c; }
-    .suggestions div:hover { background:#122252; }
-    .more { cursor:pointer; color:var(--acc); text-decoration:underline; }
-    .hidden { display:none; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--txt); }
+    header { padding:12px 16px; border-bottom:1px solid var(--mut); position:sticky; top:0; background:linear-gradient(180deg,var(--bg),rgba(11,19,43,.85)); backdrop-filter:saturate(1.2) blur(2px);}
+    h1{margin:0;font-size:1.1rem;}
+    a{color:var(--acc);text-decoration:none;} a:hover{text-decoration:underline;}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:16px;}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--mut);color:var(--txt);font-size:.85rem;}
+    .muted{color:#cfe8ea;opacity:.85;}
+    .card{background:var(--card);border:1px solid var(--mut);border-radius:12px;padding:16px;}
+    .blink{animation:bl 1s step-start infinite;color:#fff;background:var(--alert);border-radius:8px;padding:2px 6px;}
+    @keyframes bl{50%{opacity:.35}}
+    .searchbox{position:relative;display:inline-block;}
+    .searchbox input{padding:8px 12px;border-radius:8px;border:1px solid var(--mut);background:#0f1b3d;color:var(--txt);min-width:220px;}
+    .suggestions{position:absolute;top:40px;left:0;right:0;background:#0f1b3d;border:1px solid var(--mut);border-radius:8px;max-height:240px;overflow:auto;z-index:5;}
+    .suggestions div{padding:8px 10px;cursor:pointer;border-bottom:1px solid #1f2a4c;} .suggestions div:hover{background:#122252;}
+    .hidden{display:none;}
+
+    /* iOS-like day strip + mode picker */
+    .strip{display:flex;gap:8px;overflow:auto;padding:6px 2px;}
+    .day{min-width:64px;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--mut);background:#0f1b3d;}
+    .day.active{outline:2px solid var(--acc);}
+    .mode{display:flex;flex-direction:column;gap:4px;}
+    .mode button{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--mut);background:#0f1b3d;color:var(--txt);border-radius:10px;width:100%;cursor:pointer}
+    .mode button.active{outline:2px solid var(--acc);}
+    .kpi{display:flex;align-items:center;gap:16px;}
+    .kpi .big{font-weight:800;font-size:2.2rem;min-width:6ch;}
+    canvas{width:100%;height:260px;background:linear-gradient(180deg,#0f1b3d,rgba(15,27,61,.3));border-radius:12px;border:1px solid var(--mut);}
+    .legend{display:flex;gap:16px;margin:8px 0;}
+    .legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:currentColor;opacity:.9;}
   </style>
 </head>
 <body>
   <header>
-    <div class="row" style="justify-content:space-between; gap:12px">
+    <div class="row" style="justify-content:space-between;gap:12px">
       <h1>Weather • {{ city }}, {{ region }} <span class="muted">| IST: {{ now_ist }}</span></h1>
       <div class="row">
         <a class="pill" href="/?city=durgapur">Durgapur</a>
@@ -49,218 +55,112 @@
 
   <div class="wrap">
 
-    <!-- TODAY FIRST -->
+    <!-- TODAY SUMMARY (top like iOS) -->
     <section class="card">
-      <h2 style="margin-top:0">Today</h2>
       {% set t = payload['today'] %}
+      {% set cur = payload['current'] %}
       <div class="kpi">
         <div class="big {{ 'blink' if t['alert'] else '' }}">
-          {% if t['temperature'] is not none %}
-            {{ t['temperature'] }}°C
-          {% else %} — {% endif %}
+          {{ t['temperature'] if t['temperature'] is not none else "—" }}°C
         </div>
         <div>
-          <div>
-            Precip. Probability:
-            <span class="{{ 'blink' if t['precip_alert'] else '' }}">
-              {{ t['precip_prob'] if t['precip_prob'] is not none else "—" }}%
-            </span>
+          <div>{{ cur['weather_desc'] or "—" }}</div>
+          <div class="muted">H/L today:
+            {% set d0 = payload['daily'][0] if payload['daily'] else {} %}
+            {{ d0.get('temperature_2m_max','—') }}° / {{ d0.get('temperature_2m_min','—') }}°
           </div>
-          <div class="muted">Tap <span class="more" data-target="#today-more">More</span> for details</div>
+          <div class="muted">Updated: {{ cur['time_ist'] or "—" }}</div>
         </div>
       </div>
-
-      <div id="today-more" class="hidden" style="margin-top:10px">
-        {% set cur = payload['current'] %}
-        <div class="row">
-          <span class="pill">Condition: {{ cur['weather_desc'] or "—" }}</span>
-          <span class="pill">Wind: {{ cur['windspeed'] if cur['windspeed'] is not none else "—" }} km/h</span>
-          <span class="pill">Dir: {{ cur['winddirection'] if cur['winddirection'] is not none else "—" }}°</span>
-          <span class="pill">Updated: {{ cur['time_ist'] or "—" }}</span>
-          <span class="pill">Gen: {{ payload['meta']['generationtime_ms'] }} ms</span>
-        </div>
+      <div style="margin-top:8px">
+        Chance of Precipitation: <strong class="{{ 'blink' if t['precip_alert'] else '' }}">{{ t['precip_prob'] if t['precip_prob'] is not none else '—' }}%</strong>
       </div>
     </section>
 
-    <!-- NEXT 7 DAYS (summary cards) -->
-    <section class="card">
-      <h2 style="margin-top:0">Next 7 Days</h2>
-      <div class="grid">
+    <!-- iOS-like CHART CARD -->
+    <section class="card" id="chartCard">
+      <!-- Day strip -->
+      <div class="strip" id="dayStrip">
         {% for d in payload['daily'] %}
-          {% set temp_alert = (d['temperature_2m_max'] is not none and d['temperature_2m_max'] >= 35) or (d['temperature_2m_min'] is not none and d['temperature_2m_min'] <= 10) %}
-          {% set precip_flag = d['precipitation_hours'] is not none and d['precipitation_hours'] > 0 %}
-          <div class="card" style="padding:12px">
-            <div class="row" style="justify-content:space-between">
-              <strong>{{ d['date'] or "—" }}</strong>
-              <span class="muted">{{ d.get('weather_desc','') }}</span>
+          {% set label = loop.index0 %}
+          <div class="day {{ 'active' if loop.first else '' }}" data-dayindex="{{ loop.index0 }}">
+            <div class="muted" style="font-size:.8rem">
+              {{ ['S','M','T','W','T','F','S'][loop.index0 % 7] }}
             </div>
-            <div class="row" style="margin-top:6px">
-              <span class="pill {{ 'blink' if temp_alert else '' }}">
-                Min/Max: {{ d['temperature_2m_min'] if d['temperature_2m_min'] is not none else "—" }} / {{ d['temperature_2m_max'] if d['temperature_2m_max'] is not none else "—" }} °C
-              </span>
-              <span class="pill {{ 'blink' if precip_flag else '' }}">
-                Precip (sum/hrs): {{ d['precipitation_sum'] if d['precipitation_sum'] is not none else "—" }} / {{ d['precipitation_hours'] if d['precipitation_hours'] is not none else "—" }}
-              </span>
-            </div>
+            <div style="font-weight:700">{{ d['date'] }}</div>
+            <div class="muted" style="font-size:.85rem">{{ d.get('weather_desc','') }}</div>
           </div>
         {% endfor %}
       </div>
-      <div class="muted" style="margin-top:8px">Tap <span class="more" data-target="#days-more">More</span> to see UV, wind, sunrise/sunset.</div>
 
-      <div id="days-more" class="hidden" style="margin-top:8px">
-        <div class="sticky-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Min / Max (°C)</th>
-                <th>Feels (°C)</th>
-                <th>Precip (mm / hrs)</th>
-                <th>Wind (km/h / Gust)</th>
-                <th>Dir (°)</th>
-                <th>Sunrise / Sunset (IST)</th>
-                <th>UV Max</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for d in payload['daily'] %}
-                <tr>
-                  <td>{{ d['date'] or "—" }}</td>
-                  <td>{{ (d['temperature_2m_min'] if d['temperature_2m_min'] is not none else "—") }} / {{ (d['temperature_2m_max'] if d['temperature_2m_max'] is not none else "—") }}</td>
-                  <td>{{ (d['apparent_temperature_min'] if d['apparent_temperature_min'] is not none else "—") }} / {{ (d['apparent_temperature_max'] if d['apparent_temperature_max'] is not none else "—") }}</td>
-                  <td>{{ (d['precipitation_sum'] if d['precipitation_sum'] is not none else "—") }} / {{ (d['precipitation_hours'] if d['precipitation_hours'] is not none else "—") }}</td>
-                  <td>{{ (d['wind_speed_10m_max'] if d['wind_speed_10m_max'] is not none else "—") }} / {{ (d['wind_gusts_10m_max'] if d['wind_gusts_10m_max'] is not none else "—") }}</td>
-                  <td>{{ d['wind_direction_10m_dominant'] if d['wind_direction_10m_dominant'] is not none else "—" }}</td>
-                  <td>{{ d.get('sunrise_ist') or d.get('sunrise') or "—" }} / {{ d.get('sunset_ist') or d.get('sunset') or "—" }}</td>
-                  <td>{{ d['uv_index_max'] if d['uv_index_max'] is not none else "—" }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <!-- Mode picker -->
+      <div class="grid" style="grid-template-columns:260px 1fr;">
+        <div class="mode">
+          <button class="active" data-mode="conditions">Conditions<span class="muted">Temp • Feels Like</span></button>
+          <button data-mode="uv">UV Index</button>
+          <button data-mode="wind">Wind</button>
+          <button data-mode="precip">Precipitation</button>
+          <button data-mode="humidity">Humidity</button>
+          <button data-mode="visibility">Visibility</button>
+          <button data-mode="pressure">Pressure</button>
+        </div>
+
+        <div>
+          <canvas id="chart"></canvas>
+          <div class="legend" id="legend"></div>
+          <div class="muted" id="subtitle">The actual temperature.</div>
         </div>
       </div>
     </section>
 
-    <!-- HOURLY TABLE (hidden by default; expandable) -->
+    <!-- “More” sections kept (optional) -->
     <section class="card">
-      <h2 style="margin-top:0">Hourly (Next 24 Hours)</h2>
-      <div class="muted">Tap <span class="more" data-target="#hourly-more">More</span> to expand.</div>
-      <div id="hourly-more" class="hidden">
-        <div class="sticky-table" style="margin-top:8px">
-          <table>
-            <thead>
-              <tr>
-                <th>Time (IST)</th>
-                <th>Temp</th>
-                <th>Feels</th>
-                <th>RH%</th>
-                <th>DewPt</th>
-                <th>Precip</th>
-                <th>Rain</th>
-                <th>Showers</th>
-                <th>Snow</th>
-                <th>SnowDepth</th>
-                <th>PrecProb%</th>
-                <th>Cloud%</th>
-                <th>Vis (m)</th>
-                <th>UV</th>
-                <th>UV (Clear)</th>
-                <th>Wind</th>
-                <th>Gust</th>
-                <th>Dir°</th>
-                <th>MSL</th>
-                <th>SurfP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for h in payload['hourly'] %}
-                <tr>
-                  <td>{{ h.get('time_ist') or "—" }}</td>
-                  <td>{{ h.get('temperature_2m', "—") }}</td>
-                  <td>{{ h.get('apparent_temperature', "—") }}</td>
-                  <td>{{ h.get('relative_humidity_2m', "—") }}</td>
-                  <td>{{ h.get('dew_point_2m', "—") }}</td>
-                  <td>{{ h.get('precipitation', "—") }}</td>
-                  <td>{{ h.get('rain', "—") }}</td>
-                  <td>{{ h.get('showers', "—") }}</td>
-                  <td>{{ h.get('snowfall', "—") }}</td>
-                  <td>{{ h.get('snow_depth', "—") }}</td>
-                  <td>{{ h.get('precipitation_probability', "—") }}</td>
-                  <td>{{ h.get('cloud_cover', "—") }}</td>
-                  <td>{{ h.get('visibility', "—") }}</td>
-                  <td>{{ h.get('uv_index', "—") }}</td>
-                  <td>{{ h.get('uv_index_clear_sky', "—") }}</td>
-                  <td>{{ h.get('wind_speed_10m', "—") }}</td>
-                  <td>{{ h.get('wind_gusts_10m', "—") }}</td>
-                  <td>{{ h.get('wind_direction_10m', "—") }}</td>
-                  <td>{{ h.get('pressure_msl', "—") }}</td>
-                  <td>{{ h.get('surface_pressure', "—") }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <h3 style="margin-top:0">Details</h3>
+      <div class="row">
+        <span class="pill">Wind: {{ cur['windspeed'] if cur['windspeed'] is not none else '—' }} km/h</span>
+        <span class="pill">Dir: {{ cur['winddirection'] if cur['winddirection'] is not none else '—' }}°</span>
+        <span class="pill">Gen: {{ payload['meta']['generationtime_ms'] }} ms</span>
+        <span class="pill">TZ: {{ payload['meta']['timezone'] }}</span>
+        <span class="pill">Elevation: {{ payload['meta']['elevation'] if payload['meta']['elevation'] is not none else '—' }}</span>
       </div>
-      {% if payload['errors']['forecast'] %}
-        <p class="error small">Forecast error: {{ payload['errors']['forecast'] }}</p>
-      {% endif %}
     </section>
 
-    <!-- AIR QUALITY -->
+    <!-- Air Quality left as-is; can be made a mode later -->
     <section class="card">
-      <h2 style="margin-top:0">Air Quality (Next 24 Hours)</h2>
-      <div class="sticky-table">
-        <table>
+      <h3 style="margin-top:0">Air Quality (Next 24 Hours)</h3>
+      <div class="muted">US AQI (overall) shown hourly below.</div>
+      <div style="max-height:320px; overflow:auto; border:1px solid var(--mut); border-radius:8px; margin-top:8px">
+        <table style="width:100%; border-collapse:collapse;">
           <thead>
             <tr>
-              <th>Time (IST)</th>
-              <th>US AQI</th>
-              <th>US AQI (PM2.5)</th>
-              <th>US AQI (PM10)</th>
-              <th>US AQI (NO₂)</th>
-              <th>US AQI (O₃)</th>
-              <th>US AQI (SO₂)</th>
-              <th>US AQI (CO)</th>
-              <th>PM2.5</th>
-              <th>PM10</th>
-              <th>NO₂</th>
-              <th>SO₂</th>
-              <th>O₃</th>
-              <th>CO</th>
-              <th>AOD</th>
-              <th>Dust</th>
-              <th>UV</th>
-              <th>UV (Clear)</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">Time (IST)</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">US AQI</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">PM2.5</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">PM10</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">NO₂</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">SO₂</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">O₃</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px dashed #2d3a55;">CO</th>
             </tr>
           </thead>
           <tbody>
             {% for a in payload['air_quality'] %}
               <tr>
-                <td>{{ a.get('time_ist') or "—" }}</td>
-                <td>{{ a.get('us_aqi', "—") }}</td>
-                <td>{{ a.get('us_aqi_pm2_5', "—") }}</td>
-                <td>{{ a.get('us_aqi_pm10', "—") }}</td>
-                <td>{{ a.get('us_aqi_no2', "—") }}</td>
-                <td>{{ a.get('us_aqi_o3', "—") }}</td>
-                <td>{{ a.get('us_aqi_so2', "—") }}</td>
-                <td>{{ a.get('us_aqi_co', "—") }}</td>
-                <td>{{ a.get('pm2_5', "—") }}</td>
-                <td>{{ a.get('pm10', "—") }}</td>
-                <td>{{ a.get('nitrogen_dioxide', "—") }}</td>
-                <td>{{ a.get('sulphur_dioxide', "—") }}</td>
-                <td>{{ a.get('ozone', "—") }}</td>
-                <td>{{ a.get('carbon_monoxide', "—") }}</td>
-                <td>{{ a.get('aerosol_optical_depth', "—") }}</td>
-                <td>{{ a.get('dust', "—") }}</td>
-                <td>{{ a.get('uv_index', "—") }}</td>
-                <td>{{ a.get('uv_index_clear_sky', "—") }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('time_ist') or "—" }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('us_aqi',"—") }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('pm2_5',"—") }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('pm10',"—") }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('nitrogen_dioxide',"—") }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('sulphur_dioxide',"—") }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('ozone',"—") }}</td>
+                <td style="padding:8px; border-bottom:1px dashed #2d3a55;">{{ a.get('carbon_monoxide',"—") }}</td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
       {% if payload['errors']['air'] %}
-        <p class="error small">Air Quality error: {{ payload['errors']['air'] }}</p>
+        <p class="muted">Air API error: {{ payload['errors']['air'] }}</p>
       {% endif %}
     </section>
   </div>
@@ -269,56 +169,173 @@
     Data: Open-Meteo • <a href="/start">Start Keep-Alive</a> • <a href="/ping">Ping</a>
   </footer>
 
+  <!-- Data for JS -->
   <script>
-    // expand/collapse
-    document.querySelectorAll('.more').forEach(el => {
-      el.addEventListener('click', () => {
-        const sel = el.getAttribute('data-target');
-        const tgt = document.querySelector(sel);
-        if (tgt) tgt.classList.toggle('hidden');
-      });
-    });
+    // embed the hourly payload for plotting (safe)
+    const HOURLY = {{ payload['hourly']|tojson }};
+    const DAILY  = {{ payload['daily']|tojson }};
+    const NOW_IST = "{{ now_ist }}";
+  </script>
 
-    // typeahead search using /geo proxy
+  <script>
+    // ---------- typeahead ----------
     const box = document.getElementById('place');
     const sugs = document.getElementById('sugs');
     let tmr = null;
-
-    function hideSugs(){ sugs.classList.add('hidden'); sugs.innerHTML = ''; }
-
-    box.addEventListener('input', () => {
-      const q = box.value.trim();
-      if (tmr) clearTimeout(tmr);
-      if (q.length < 3) { hideSugs(); return; }
-      tmr = setTimeout(async () => {
-        try {
-          const res = await fetch(`/geo?q=${encodeURIComponent(q)}`);
-          const data = await res.json();
-          sugs.innerHTML = '';
-          (data.results || []).forEach(r => {
-            const div = document.createElement('div');
-            div.textContent = `${r.name}${r.admin1 ? ', ' + r.admin1 : ''}${r.country ? ', ' + r.country : ''}`;
-            div.addEventListener('click', () => {
-              const name = encodeURIComponent(r.name || 'Custom');
-              const region = encodeURIComponent(r.admin1 || r.country || '');
-              const url = `/?lat=${r.lat}&lon=${r.lon}&name=${name}&region=${region}`;
-              window.location.href = url;
+    function hideSugs(){ sugs.classList.add('hidden'); sugs.innerHTML=''; }
+    if (box){
+      box.addEventListener('input', () => {
+        const q = box.value.trim();
+        if (tmr) clearTimeout(tmr);
+        if (q.length < 3) { hideSugs(); return; }
+        tmr = setTimeout(async () => {
+          try {
+            const res = await fetch(`/geo?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            sugs.innerHTML='';
+            (data.results||[]).forEach(r=>{
+              const div=document.createElement('div');
+              div.textContent=`${r.name}${r.admin1 ? ', '+r.admin1 : ''}${r.country ? ', '+r.country : ''}`;
+              div.onclick=()=>{ location.href=`/?lat=${r.lat}&lon=${r.lon}&name=${encodeURIComponent(r.name||'Custom')}&region=${encodeURIComponent(r.admin1||r.country||'')}`; };
+              sugs.appendChild(div);
             });
-            sugs.appendChild(div);
-          });
-          if ((data.results || []).length) {
-            sugs.classList.remove('hidden');
-          } else {
-            hideSugs();
-          }
-        } catch(e) {
-          hideSugs();
-        }
-      }, 250);
+            (data.results||[]).length ? sugs.classList.remove('hidden') : hideSugs();
+          }catch(e){ hideSugs(); }
+        },250);
+      });
+      document.addEventListener('click',e=>{ if(!document.querySelector('.searchbox').contains(e.target)) hideSugs(); });
+    }
+
+    // ---------- small helpers ----------
+    function todayDateStrIST(){ return NOW_IST.slice(0,10); } // "YYYY-MM-DD"
+    function filterToday(series){ // HOURLY item uses "time_ist"
+      const d = todayDateStrIST();
+      return series.filter(x => (x.time_ist||'').startsWith(d));
+    }
+    function getSeriesToday(key){ return filterToday(HOURLY).map(h => Number(h[key]??NaN)); }
+    function getTimesToday(){ return filterToday(HOURLY).map(h => (h.time_ist||'').slice(11,16)); }
+
+    // ---------- chart drawing (vanilla canvas, lightweight) ----------
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    function clearChart(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
+
+    function scaleY(vals, padding=20){
+      const v = vals.filter(x=>!Number.isNaN(x));
+      if(!v.length){ return {f:()=>canvas.height/2, min:0, max:1}; }
+      let min = Math.min(...v), max = Math.max(...v);
+      if(min===max){ min-=1; max+=1; }
+      const H = canvas.height - padding*2;
+      return {
+        min,max,
+        f:(y)=> padding + (max - y) * (H / (max - min))
+      };
+    }
+    function drawAxes(labels){
+      ctx.strokeStyle = "rgba(255,255,255,.15)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(40,10); ctx.lineTo(40,canvas.height-20); ctx.lineTo(canvas.width-10,canvas.height-20); ctx.stroke();
+      // x labels (every 3rd)
+      ctx.fillStyle = "rgba(255,255,255,.6)";
+      ctx.font = "12px system-ui";
+      const step = (canvas.width-60)/Math.max(1,labels.length-1);
+      labels.forEach((t,i)=>{ if(i%3===0){ ctx.fillText(t, 40+i*step-8, canvas.height-4); }});
+    }
+    function plotLine(labels, vals, yscale, color, dashed=false){
+      ctx.save();
+      if(dashed) ctx.setLineDash([6,4]);
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      const step = (canvas.width-60)/Math.max(1,labels.length-1);
+      ctx.beginPath();
+      labels.forEach((_,i)=>{
+        const x = 40 + i*step;
+        const y = yscale.f(vals[i]);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ---------- modes ----------
+    const legend = document.getElementById('legend');
+    const subtitle = document.getElementById('subtitle');
+    function setLegend(items){ // items: [{label,color}]
+      legend.innerHTML='';
+      items.forEach(it=>{ const span=document.createElement('span'); span.textContent=it.label; span.style.color=it.color; legend.appendChild(span); });
+    }
+
+    function drawMode(mode){
+      clearChart();
+      const times = getTimesToday();
+      drawAxes(times);
+      if(mode==='conditions'){
+        const actual = getSeriesToday('temperature_2m');
+        const feels  = getSeriesToday('apparent_temperature');
+        const all = actual.concat(feels);
+        const s = scaleY(all);
+        plotLine(times, actual, s, "#5bc0be", false);
+        plotLine(times, feels,  s, "#e0fbfc", true);
+        setLegend([{label:'Actual',color:'#5bc0be'},{label:'Feels Like',color:'#e0fbfc'}]);
+        subtitle.textContent = "The actual temperature.";
+      }else if(mode==='uv'){
+        const v = getSeriesToday('uv_index');
+        const s = scaleY(v);
+        plotLine(times, v, s, "#ffd166");
+        setLegend([{label:'UV Index',color:'#ffd166'}]);
+        subtitle.textContent = "Estimated hourly UV index.";
+      }else if(mode==='wind'){
+        const v = getSeriesToday('wind_speed_10m');
+        const s = scaleY(v);
+        plotLine(times, v, s, "#a0c4ff");
+        setLegend([{label:'Wind (km/h)',color:'#a0c4ff'}]);
+        subtitle.textContent = "10 m wind speed.";
+      }else if(mode==='precip'){
+        const v = getSeriesToday('precipitation_probability');
+        const s = scaleY(v.length? v : [0,100]); // keep 0–100 if empty
+        plotLine(times, v, s, "#72efdd");
+        setLegend([{label:'Chance of Precipitation %',color:'#72efdd'}]);
+        subtitle.textContent = "Hourly chance of precipitation.";
+      }else if(mode==='humidity'){
+        const v = getSeriesToday('relative_humidity_2m');
+        const s = scaleY(v.length? v : [0,100]);
+        plotLine(times, v, s, "#bde0fe");
+        setLegend([{label:'Humidity %',color:'#bde0fe'}]);
+        subtitle.textContent = "Relative humidity near 2 m.";
+      }else if(mode==='visibility'){
+        const v = getSeriesToday('visibility');
+        const s = scaleY(v);
+        plotLine(times, v, s, "#ffd6a5");
+        setLegend([{label:'Visibility (m)',color:'#ffd6a5'}]);
+        subtitle.textContent = "Estimated horizontal visibility.";
+      }else if(mode==='pressure'){
+        const v = getSeriesToday('pressure_msl');
+        const s = scaleY(v);
+        plotLine(times, v, s, "#caffbf");
+        setLegend([{label:'MSL Pressure (hPa)',color:'#caffbf'}]);
+        subtitle.textContent = "Mean sea-level pressure.";
+      }
+    }
+
+    // default mode
+    drawMode('conditions');
+
+    // mode button handlers
+    document.querySelectorAll('.mode button').forEach(btn=>{
+      btn.onclick=()=>{
+        document.querySelectorAll('.mode button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        drawMode(btn.dataset.mode);
+      };
     });
 
-    document.addEventListener('click', (e) => {
-      if (!document.querySelector('.searchbox').contains(e.target)) hideSugs();
+    // day-strip: by design we show "today" data only in chart (iOS style).
+    // The strip is visual and could drive future day selection; keeping click for future:
+    document.querySelectorAll('.day').forEach(d=>{
+      d.onclick=()=>{
+        document.querySelectorAll('.day').forEach(x=>x.classList.remove('active'));
+        d.classList.add('active');
+        // For now, still plotting today’s hours. To extend: pass all-hour arrays and filter by that day.
+      };
     });
   </script>
 </body>
